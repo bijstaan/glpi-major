@@ -1,0 +1,803 @@
+/* SPDX-License-Identifier: GPL-3.0-or-later */
+/* Copyright (C) 2026 Bijstaan */
+/*
+ * Major-incident banners and the incident page.
+ *
+ * Colours come from Tabler's own tokens rather than fixed hex values, so the
+ * banner follows whatever palette the instance is wearing — including
+ * glpi-palette's — instead of being a bright rectangle that only looks right on
+ * the default theme. No fallback literals: every token here is one Tabler's
+ * own stylesheet always defines, on every theme this plugin ships for, so a
+ * literal fallback would never fire and would only be a colour hiding in the
+ * file for the dark-theme sweep to trip over (house finding, 2026-08-22).
+ */
+
+/*
+ * A section of the ITIL field panel, not a card floating in the field grid.
+ * It carries the panel's own padding and rules (via .accordion-item) and adds
+ * only the coloured left rail that says which state the incident is in — the
+ * one thing core has no equivalent for. No radius, no bottom margin and no
+ * surface tint: a rounded, detached, differently-coloured box between two
+ * flush section headers is what made this read as somebody else's furniture.
+ *
+ * `.accordion-item` is repeated in each selector on purpose. `.accordion-flush
+ * .accordion-item` zeroes the side borders at two classes, so a single-class
+ * rule here loses the rail on specificity and the banner arrives with no state
+ * colour at all — which is the whole signal.
+ */
+.accordion-item.glpimajor-banner {
+    border-left: 4px solid var(--tblr-danger);
+    padding: 16px 20px;
+}
+
+.accordion-item.glpimajor-banner--warning { border-left-color: var(--tblr-warning); }
+.accordion-item.glpimajor-banner--success { border-left-color: var(--tblr-success); }
+.accordion-item.glpimajor-banner--info    { border-left-color: var(--tblr-info); }
+.accordion-item.glpimajor-banner--offer   { border-left-color: var(--tblr-azure); }
+
+.glpimajor-banner-head {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-bottom: 4px;
+}
+
+.glpimajor-flag {
+    font-size: .72rem;
+    font-weight: 700;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+}
+
+.glpimajor-state {
+    font-size: .74rem;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 999px;
+    background: var(--tblr-bg-surface);
+}
+
+.glpimajor-open { margin-left: auto; font-size: .85rem; }
+
+.glpimajor-title {
+    font-size: 1.05rem;
+    font-weight: 600;
+    overflow-wrap: anywhere;
+}
+
+.glpimajor-sub,
+.glpimajor-facts {
+    font-size: .84rem;
+    /* Not opacity — see .glpimajor-portal-state; this sits on the same
+       --tblr-bg-surface-tertiary background as the rest of the banner. */
+    color: color-mix(in srgb, var(--tblr-body-color), transparent 10%);
+    margin-top: 2px;
+}
+
+.glpimajor-roles {
+    display: flex;
+    gap: 16px;
+    flex-wrap: wrap;
+    margin-top: 6px;
+    font-size: .88rem;
+}
+
+.glpimajor-role b {
+    font-weight: 600;
+    color: color-mix(in srgb, var(--tblr-body-color), transparent 10%);
+    margin-right: 4px;
+}
+.glpimajor-role--empty {
+    color: color-mix(in srgb, var(--tblr-body-color), transparent 10%);
+    font-style: italic;
+}
+.glpimajor-late { color: var(--tblr-danger); font-weight: 600; }
+
+.glpimajor-actions { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+
+/*
+ * Declaring is deliberately quiet: a collapsed row in the field panel, not a
+ * call to action. It is now built from core's accordion parts, so the panel
+ * supplies the type, padding, rules and chevron and there is nothing to
+ * restate here — only the body's own width, which core's sections do not need
+ * because their contents are field grids and this one is a form.
+ *
+ * The fields are not wrapped in a form of their own — see Banner::FORM_ID.
+ */
+.glpimajor-declare .accordion-body { max-width: 640px; }
+
+/* ------------------------------------------------------------ incident page */
+
+/* -------------------------------------------------------------------------
+ * The cockpit, and the shared state tones.
+ *
+ * One custom property per tone, defined on both plugin roots that draw state
+ * pills, because the raw Tabler tokens fail the 4.5:1 floor as *text* in both
+ * directions: --tblr-warning (#f59f00) and --tblr-success (#2fb344) are too
+ * light on a light card, and all three are too dark on a dark one (the same
+ * never-rechecked red the .btn-outline-danger lift at the bottom of this file
+ * exists for). Light mixes toward black, dark toward white; the dark values
+ * live in the dark-theme block below with the rest. The mixes are of the
+ * *Tabler* token, never of the custom property itself — a self-referential
+ * color-mix is a silent var() failure (house finding).
+ * --------------------------------------------------------------------------- */
+.glpimajor-cockpit,
+.glpimajor-view {
+    --glpimajor-tone-danger:  color-mix(in srgb, var(--tblr-danger), black 12%);
+    --glpimajor-tone-warning: color-mix(in srgb, var(--tblr-warning), black 38%);
+    --glpimajor-tone-success: color-mix(in srgb, var(--tblr-success), black 32%);
+}
+
+.glpimajor-cockpit {
+    border: 1px solid var(--tblr-border-color);
+    border-left: 4px solid var(--tblr-danger);
+    border-radius: 8px;
+    background: var(--tblr-bg-surface);
+    padding: 16px 18px 14px;
+    margin-bottom: 14px;
+}
+.glpimajor-cockpit--warning { border-left-color: var(--tblr-warning); }
+.glpimajor-cockpit--success { border-left-color: var(--tblr-success); }
+
+.glpimajor-cockpit-top {
+    display: flex;
+    align-items: flex-start;
+    gap: 16px;
+    flex-wrap: wrap;
+}
+.glpimajor-cockpit-lede { flex: 1 1 320px; min-width: 0; }
+
+.glpimajor-cockpit-flagline {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-bottom: 4px;
+}
+.glpimajor-cockpit-since {
+    font-size: .84rem;
+    font-weight: 600;
+    color: color-mix(in srgb, var(--tblr-body-color), transparent 10%);
+}
+
+.glpimajor-cockpit-title {
+    font-size: 1.45rem;
+    font-weight: 600;
+    line-height: 1.25;
+    margin: 0;
+    overflow-wrap: anywhere;
+}
+
+.glpimajor-cockpit-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex: 0 0 auto;
+}
+
+/* The small "other transitions" menu beside the primary button. */
+.glpimajor-cockpit-menu { position: relative; }
+.glpimajor-cockpit-menu > summary { list-style: none; }
+.glpimajor-cockpit-menu > summary::-webkit-details-marker { display: none; }
+.glpimajor-cockpit-menu-list {
+    position: absolute;
+    right: 0;
+    top: calc(100% + 4px);
+    z-index: 30;
+    min-width: 200px;
+    display: flex;
+    flex-direction: column;
+    border: 1px solid var(--tblr-border-color);
+    border-radius: 6px;
+    background: var(--tblr-bg-surface);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, .18);
+    padding: 4px;
+}
+.glpimajor-cockpit-menu-item {
+    border: 0;
+    background: transparent;
+    text-align: left;
+    padding: 7px 10px;
+    border-radius: 4px;
+    font-size: .86rem;
+    color: var(--tblr-body-color);
+    cursor: pointer;
+}
+.glpimajor-cockpit-menu-item:hover { background: var(--tblr-bg-surface-tertiary); }
+
+/* The state pill: the banner's tone map, as a badge. */
+.glpimajor-pill {
+    display: inline-block;
+    padding: 2px 10px;
+    border-radius: 999px;
+    font-size: .76rem;
+    font-weight: 700;
+    letter-spacing: .02em;
+    white-space: nowrap;
+    border: 1px solid transparent;
+}
+.glpimajor-pill--danger {
+    color: var(--glpimajor-tone-danger);
+    border-color: color-mix(in srgb, var(--tblr-danger), transparent 55%);
+    background: color-mix(in srgb, var(--tblr-danger), transparent 92%);
+}
+.glpimajor-pill--warning {
+    color: var(--glpimajor-tone-warning);
+    border-color: color-mix(in srgb, var(--tblr-warning), transparent 55%);
+    background: color-mix(in srgb, var(--tblr-warning), transparent 90%);
+}
+.glpimajor-pill--success {
+    color: var(--glpimajor-tone-success);
+    border-color: color-mix(in srgb, var(--tblr-success), transparent 55%);
+    background: color-mix(in srgb, var(--tblr-success), transparent 92%);
+}
+
+/* The progression strip: four segments, travelled / here / not yet. */
+.glpimajor-strip {
+    display: flex;
+    gap: 6px;
+    list-style: none;
+    margin: 14px 0 0;
+    padding: 0;
+}
+.glpimajor-strip li {
+    flex: 1 1 0;
+    border-top: 4px solid var(--tblr-border-color);
+    border-radius: 2px;
+    padding: 6px 4px 0;
+    font-size: .8rem;
+    min-width: 0;
+}
+.glpimajor-strip li.is-done { border-top-color: var(--tblr-success); }
+.glpimajor-strip li.is-current { font-weight: 700; }
+.glpimajor-strip li.is-current.glpimajor-tone--danger  { border-top-color: var(--tblr-danger); }
+.glpimajor-strip li.is-current.glpimajor-tone--warning { border-top-color: var(--tblr-warning); }
+.glpimajor-strip li.is-current.glpimajor-tone--success { border-top-color: var(--tblr-success); }
+.glpimajor-strip li.is-todo .glpimajor-strip-label {
+    color: color-mix(in srgb, var(--tblr-body-color), transparent 10%);
+}
+.glpimajor-strip-label { overflow-wrap: anywhere; }
+
+/* The stat chips. */
+.glpimajor-cockpit-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 12px;
+}
+.glpimajor-chip {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 6px;
+    padding: 4px 10px;
+    border-radius: 6px;
+    /* --tblr-bg-surface-secondary is forbidden in dark — see the banner rule
+       at the top of this file. */
+    background: var(--tblr-bg-surface-tertiary);
+    font-size: .8rem;
+}
+.glpimajor-chip-label {
+    font-weight: 600;
+    color: color-mix(in srgb, var(--tblr-body-color), transparent 10%);
+    white-space: nowrap;
+}
+.glpimajor-chip-value { overflow-wrap: anywhere; }
+.glpimajor-chip.is-late .glpimajor-chip-value {
+    color: var(--tblr-danger);
+    font-weight: 700;
+}
+
+/* The stock form, one click away. Same quiet-summary voice as the declare
+   control on the ticket. */
+.glpimajor-editdetails { margin-bottom: 12px; }
+.glpimajor-editdetails > summary {
+    cursor: pointer;
+    font-size: .84rem;
+    font-weight: 600;
+    color: color-mix(in srgb, var(--tblr-body-color), transparent 10%);
+    list-style: none;
+    padding: 4px 0;
+}
+.glpimajor-editdetails > summary::-webkit-details-marker { display: none; }
+.glpimajor-editdetails > summary::before { content: "\2295\00a0"; }
+.glpimajor-editdetails[open] > summary { color: var(--tblr-body-color); }
+
+.glpimajor-promise {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+    padding: 8px 12px;
+    border-radius: 6px;
+    /* --tblr-bg-surface-secondary is forbidden in dark — see the banner rule
+       above. */
+    background: var(--tblr-bg-surface-tertiary);
+    margin-bottom: 14px;
+}
+.glpimajor-promise.is-late { box-shadow: inset 3px 0 0 var(--tblr-danger); }
+.glpimajor-promise.is-late .glpimajor-promise-label { color: var(--tblr-danger); }
+.glpimajor-promise-label { font-weight: 600; font-size: .9rem; }
+.glpimajor-promise-actions { margin-left: auto; display: flex; gap: 6px; flex-wrap: wrap; }
+
+.glpimajor-composer-bar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-top: 8px;
+}
+.glpimajor-composer-bar > .btn:last-child { margin-left: auto; }
+
+/* The combined post's state / next-update selects: a small caption beside a
+   small select, in the same bar as the audience radios. Captions use the same
+   flat colour-mix dim this file uses everywhere else — never a property
+   override of .text-muted, whose core !important would win (see the dark-theme
+   block at the bottom of this file). */
+.glpimajor-composer-field {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin: 0;
+}
+.glpimajor-composer-field .form-select-sm { width: auto; }
+.glpimajor-composer-caption {
+    font-size: .78rem;
+    font-weight: 600;
+    white-space: nowrap;
+    color: color-mix(in srgb, var(--tblr-body-color), transparent 10%);
+}
+
+.glpimajor-composer-outcome { margin-top: 10px; }
+
+/* The composer's state pill row: the current pill selected is "keep", any
+   other pill is the transition riding this post. Buttons, not radios — the
+   hidden input carries the value and major.js owns the exclusivity. */
+.glpimajor-composer-states {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+    margin-top: 8px;
+}
+.glpimajor-statepill {
+    border: 1px solid var(--tblr-border-color);
+    border-radius: 999px;
+    background: transparent;
+    padding: 3px 12px;
+    font-size: .78rem;
+    font-weight: 600;
+    color: color-mix(in srgb, var(--tblr-body-color), transparent 10%);
+    cursor: pointer;
+}
+/* A quiet marker on the state we are in, selected or not. */
+.glpimajor-statepill.is-current::before { content: "\25CF\00a0"; font-size: .6rem; vertical-align: 1px; }
+.glpimajor-statepill.is-selected.glpimajor-statepill--danger {
+    color: var(--glpimajor-tone-danger);
+    border-color: color-mix(in srgb, var(--tblr-danger), transparent 45%);
+    background: color-mix(in srgb, var(--tblr-danger), transparent 92%);
+}
+.glpimajor-statepill.is-selected.glpimajor-statepill--warning {
+    color: var(--glpimajor-tone-warning);
+    border-color: color-mix(in srgb, var(--tblr-warning), transparent 45%);
+    background: color-mix(in srgb, var(--tblr-warning), transparent 90%);
+}
+.glpimajor-statepill.is-selected.glpimajor-statepill--success {
+    color: var(--glpimajor-tone-success);
+    border-color: color-mix(in srgb, var(--tblr-success), transparent 45%);
+    background: color-mix(in srgb, var(--tblr-success), transparent 92%);
+}
+
+/* The audience segmented control. The radios stay in the DOM (the payload
+   and the snippet auto-switch read them); the segments are their labels. */
+.glpimajor-audience {
+    display: inline-flex;
+    border: 1px solid var(--tblr-border-color);
+    border-radius: 6px;
+    overflow: hidden;
+}
+.glpimajor-audience-opt { margin: 0; cursor: pointer; position: relative; }
+.glpimajor-audience-opt input {
+    position: absolute;
+    opacity: 0;
+    width: 1px;
+    height: 1px;
+    pointer-events: none;
+}
+.glpimajor-audience-opt span {
+    display: inline-block;
+    padding: 5px 12px;
+    font-size: .8rem;
+    font-weight: 600;
+    color: color-mix(in srgb, var(--tblr-body-color), transparent 10%);
+}
+.glpimajor-audience-opt + .glpimajor-audience-opt { border-left: 1px solid var(--tblr-border-color); }
+.glpimajor-audience-opt:has(input:checked) span {
+    background: var(--tblr-bg-surface-tertiary);
+    color: var(--tblr-body-color);
+}
+/* Publishing is the consequential half; say so when it is armed. */
+.glpimajor-audience-opt:has(input[value="customer"]:checked) span {
+    box-shadow: inset 0 -2px 0 var(--tblr-azure);
+}
+
+/* The inline refusal. A refused post changed nothing, so the "no" is a
+   sentence in the composer rather than an alert or a reload. */
+.glpimajor-composer-error {
+    margin-top: 8px;
+    font-size: .88rem;
+    font-weight: 600;
+    color: var(--tblr-danger);
+}
+
+.glpimajor-review-out {
+    margin-top: 10px;
+    padding: 10px 12px;
+    border-radius: 6px;
+    border: 1px solid var(--tblr-border-color);
+    font-size: .88rem;
+}
+.glpimajor-review-out ul { margin: .3em 0 .3em 1.2em; }
+.glpimajor-review-off { cursor: help; }
+
+/* The public post-mortem panel. The action bar mirrors the composer's: the
+   one customer-facing act (Publish) is the primary button, pushed right. */
+.glpimajor-pm .glpimajor-pm-meta { margin-bottom: 8px; }
+.glpimajor-pm .glpimajor-pm-origin { margin-top: 6px; }
+.glpimajor-pm-bar {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    flex-wrap: wrap;
+    margin-top: 10px;
+}
+.glpimajor-pm-bar > .btn-primary { margin-left: auto; }
+
+.glpimajor-log { list-style: none; margin: 0; padding: 0; }
+.glpimajor-log-entry {
+    padding: 10px 0 10px 12px;
+    border-top: 1px solid var(--tblr-border-color);
+    border-left: 3px solid transparent;
+}
+.glpimajor-log-entry.is-customer { border-left-color: var(--tblr-azure); }
+.glpimajor-log-entry.is-internal { border-left-color: var(--tblr-border-color); }
+
+.glpimajor-log-head {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    font-size: .8rem;
+    color: color-mix(in srgb, var(--tblr-body-color), transparent 10%);
+    margin-bottom: 3px;
+}
+.glpimajor-log-audience { font-weight: 700; }
+.glpimajor-log-at { margin-left: auto; }
+.glpimajor-log-body { overflow-wrap: anywhere; }
+
+/* Feed entries that are events rather than prose: the verb reads at full
+   strength, the rest of the head keeps the dimmed metadata voice. */
+.glpimajor-feed-verb { font-weight: 700; color: var(--tblr-body-color); }
+.glpimajor-feed-state .glpimajor-log-head,
+.glpimajor-feed-declared .glpimajor-log-head { margin-bottom: 0; align-items: center; }
+.glpimajor-feed-state .glpimajor-log-body { margin-top: 4px; }
+.glpimajor-feed-fromticket { font-size: .84rem; margin-top: 2px; }
+.glpimajor-log-review {
+    font-size: .78rem;
+    color: color-mix(in srgb, var(--tblr-body-color), transparent 10%);
+    margin-top: 4px;
+    font-style: italic;
+}
+
+.glpimajor-timeline summary { cursor: pointer; font-weight: 600; }
+.glpimajor-timeline ol { margin-top: 8px; }
+.glpimajor-tl-at { color: color-mix(in srgb, var(--tblr-body-color), transparent 10%); font-size: .84rem; }
+.glpimajor-tl-label { font-weight: 600; }
+.glpimajor-tl-detail {
+    font-size: .84rem;
+    color: color-mix(in srgb, var(--tblr-body-color), transparent 10%);
+    margin-left: 4px;
+}
+
+.glpimajor-proposed { font-size: .84rem; color: color-mix(in srgb, var(--tblr-body-color), transparent 10%); }
+
+/* The settings page's address column can hold a long absolute URL. */
+.glpimajor-config code { overflow-wrap: anywhere; }
+
+/* -------------------------------------------------------------------------
+ * The self-service portal banner.
+ *
+ * Rendered inside GLPI 11's `<table class="central">` on the helpdesk home
+ * page, so the outer element is a table row and this styles what is inside it.
+ *
+ * Deliberately quiet. It is read by somebody who already knows something is
+ * wrong, and a red alarm on a supplier's portal adds nothing but the look of
+ * panic — so: a soft surface, one warm accent stripe, and the customer-visible
+ * title as the largest thing on it. Colours come from Tabler's own variables so
+ * it follows the instance's theme, dark included, rather than pinning a light
+ * background under white text.
+ * --------------------------------------------------------------------------- */
+.glpimajor-portal {
+    margin: 0 0 1.25rem;
+    padding: 14px 16px;
+    border: 1px solid var(--tblr-border-color);
+    border-left: 4px solid var(--tblr-orange);
+    border-radius: 8px;
+    /* --tblr-bg-surface-secondary is forbidden in dark — see the banner rule
+       above. This is the requester-facing surface, so it is the worst place
+       of all to get this wrong. */
+    background: var(--tblr-bg-surface-tertiary);
+}
+
+.glpimajor-portal-head {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    margin-bottom: 8px;
+}
+
+.glpimajor-portal-mark {
+    width: 9px;
+    height: 9px;
+    flex: 0 0 auto;
+    border-radius: 50%;
+    background: var(--tblr-orange);
+}
+
+.glpimajor-portal-lede {
+    font-weight: 600;
+    font-size: .95rem;
+}
+
+.glpimajor-portal-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.glpimajor-portal-item {
+    display: flex;
+    align-items: baseline;
+    flex-wrap: wrap;
+    gap: 4px 10px;
+    padding: 3px 0;
+}
+
+.glpimajor-portal-title { font-size: 1.02rem; }
+
+.glpimajor-portal-state {
+    font-size: .74rem;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+    /* Not `opacity`: it composites against whatever is actually behind the
+       text, and on this surface that is --tblr-bg-surface-tertiary — lighter
+       than the plain body in dark themes, so the same .72 that reads fine on
+       body text drops this to ~3.45:1. color-mix against the surface's own
+       body-color keeps the "quieter" look without depending on how light the
+       backdrop happens to be (measured against auror_dark's tertiary surface,
+       2026-08-22 — this plugin's own dark pass, the requester-facing surface
+       first). */
+    color: color-mix(in srgb, var(--tblr-body-color), transparent 10%);
+    white-space: nowrap;
+}
+
+.glpimajor-portal-foot {
+    display: flex;
+    align-items: baseline;
+    flex-wrap: wrap;
+    gap: 6px 14px;
+    margin-top: 10px;
+}
+
+.glpimajor-portal-link { font-weight: 600; }
+
+.glpimajor-portal-note {
+    font-size: .84rem;
+    /* See .glpimajor-portal-state just above. */
+    color: color-mix(in srgb, var(--tblr-body-color), transparent 10%);
+}
+
+/* The declare control's coverage tick, so it reads as part of the question
+   above it rather than as another field. */
+.glpimajor-declare-recursive { margin-top: .5rem; }
+
+/* -------------------------------------------------------------------------
+ * Dark theme: .form-text / .text-muted contrast (house trap 2).
+ *
+ * Core's dark palette leaves --tblr-secondary (the colour behind .text-muted
+ * and .form-text) too close to the dark body colour to hit the 4.5:1 floor —
+ * under `auror_dark` (body #1f2936) it reads as though every hint and helper
+ * line on this plugin's pages were disabled.
+ *
+ * A `color:` override does NOT fix this for `.text-muted`: core declares
+ * `.text-muted { color: var(--tblr-muted) !important; }`
+ * (css/includes/_base.scss:630), and no non-!important property override
+ * beats an !important one — measured the hard way on 2026-08-21, corrected
+ * 2026-08-22 (glpi-kedb's dark pass). The fix has to win the cascade the
+ * !important is fighting on, which means redefining the *variable* the
+ * !important resolves against, scoped to this plugin's own root classes
+ * rather than global — leaving every other plugin and core's own chrome
+ * alone. `.form-text` carries no !important in core, so the variable form
+ * works for it too; using the same mechanism for both means one rule to
+ * read instead of two.
+ *
+ * Every surface this plugin renders needs this, not only the settings page:
+ * the ticket banner and declare control, the incident view's comms/PIR
+ * panels, the incident and maintenance forms, and the self-service portal
+ * banner — the requester-facing one, and the worst place of all to leave
+ * dim-looking help text on somebody who does not know GLPI well enough to
+ * assume it is a rendering bug rather than a broken feature.
+ *
+ * `.form-text` turned out NOT to read `--tblr-muted` at all (measured
+ * 2026-08-22 by this plugin's own dark pass, one step further than the house
+ * brief had gone): Tabler's tabler.css declares it
+ * `.form-text { color: var(--tblr-secondary-color); }`, and
+ * `--tblr-secondary-color` is a *third* variable, keyed by Tabler's own
+ * `[data-bs-theme="dark"]` — an attribute GLPI's dark palette never sets, so
+ * that block simply never matches and the light theme's value (a dark grey
+ * meant for a light background) rides straight through. `.text-muted` really
+ * is `--tblr-muted`, confirmed by reading its computed colour rather than by
+ * re-trusting the docblock; `.form-text` needs its own variable redefined
+ * alongside it, in the same scope.
+ *
+ * The 28% the house brief's own worked example used is also, empirically,
+ * not enough: `color-mix(in srgb, X, transparent N%)` produces a
+ * *semi-transparent* colour that composites against whatever is actually
+ * behind the text at paint time — the same backdrop-dependence as `opacity`,
+ * just spelled differently — and most of this plugin's `.form-text`/
+ * `.text-muted` sit inside a Tabler `.card`, whose surface is lighter than
+ * the plain body the 28% figure was measured against. Measured here at
+ * 10%, matching the flat colour-mix percentage this file uses everywhere
+ * else it dims text, with zero failures across every `.text-muted`/
+ * `.form-text` this plugin ships (2026-08-22).
+ * --------------------------------------------------------------------------- */
+:root[data-glpi-theme-dark="1"] .glpimajor-banner,
+:root[data-glpi-theme-dark="1"] .glpimajor-declare,
+:root[data-glpi-theme-dark="1"] .glpimajor-portal,
+:root[data-glpi-theme-dark="1"] .glpimajor-view,
+:root[data-glpi-theme-dark="1"] .glpimajor-cockpit,
+:root[data-glpi-theme-dark="1"] .glpimajor-editdetails,
+:root[data-glpi-theme-dark="1"] .glpimajor-form,
+:root[data-glpi-theme-dark="1"] .glpimajor-config {
+    --tblr-muted: color-mix(in srgb, var(--tblr-body-color), transparent 10%);
+    --tblr-secondary-color: color-mix(in srgb, var(--tblr-body-color), transparent 10%);
+}
+
+/*
+ * The state tones as text on a dark surface: the same never-rechecked
+ * saturation gap as .btn-outline-danger below, for all three tones at once —
+ * so the tone custom properties flip from black-mixes to white-mixes here.
+ * Variable redefinition, not property overrides: the pills, the chips'
+ * overdue emphasis and the strip labels all resolve through these, so one
+ * scoped block keeps every consumer honest.
+ */
+:root[data-glpi-theme-dark="1"] .glpimajor-cockpit,
+:root[data-glpi-theme-dark="1"] .glpimajor-view {
+    --glpimajor-tone-danger:  color-mix(in srgb, var(--tblr-danger), white 45%);
+    --glpimajor-tone-warning: color-mix(in srgb, var(--tblr-warning), white 30%);
+    --glpimajor-tone-success: color-mix(in srgb, var(--tblr-success), white 35%);
+}
+
+/* The overdue chip reads straight from --tblr-danger in light (4.7:1 there);
+   in dark it takes the lifted tone. */
+:root[data-glpi-theme-dark="1"] .glpimajor-cockpit .glpimajor-chip.is-late .glpimajor-chip-value {
+    color: var(--glpimajor-tone-danger);
+}
+
+/*
+ * Two more core-wide gaps, not this plugin's own, found by the canonical
+ * cross-plugin re-audit walking every
+ * text-bearing element rather than just `.text-muted`/`.form-text`:
+ *  - `<code>` (the status page URL on settings) carries a fixed
+ *    `--tblr-code-color` no dark palette redefines — 2.12:1.
+ *  - `.btn-outline-danger` (core's own "Delete permanently"/"Revoke"
+ *    controls) reads straight from `--tblr-danger` with no auto-contrast —
+ *    2.95:1 against this plugin's card surfaces. glpi-service already
+ *    scoped the identical fix for its own withdraw button; trivially
+ *    scopeable here the same way.
+ */
+:root[data-glpi-theme-dark="1"] .glpimajor-banner code,
+:root[data-glpi-theme-dark="1"] .glpimajor-declare code,
+:root[data-glpi-theme-dark="1"] .glpimajor-portal code,
+:root[data-glpi-theme-dark="1"] .glpimajor-view code,
+:root[data-glpi-theme-dark="1"] .glpimajor-form code,
+:root[data-glpi-theme-dark="1"] .glpimajor-config code {
+    color: color-mix(in srgb, var(--tblr-body-color), transparent 10%);
+}
+:root[data-glpi-theme-dark="1"] .glpimajor-banner .btn-outline-danger,
+:root[data-glpi-theme-dark="1"] .glpimajor-declare .btn-outline-danger,
+:root[data-glpi-theme-dark="1"] .glpimajor-portal .btn-outline-danger,
+:root[data-glpi-theme-dark="1"] .glpimajor-view .btn-outline-danger,
+:root[data-glpi-theme-dark="1"] .glpimajor-form .btn-outline-danger,
+:root[data-glpi-theme-dark="1"] .glpimajor-config .btn-outline-danger {
+    color: color-mix(in srgb, var(--tblr-danger), white 40%);
+    border-color: color-mix(in srgb, var(--tblr-danger), white 40%);
+}
+
+/*
+ * Core-wide gap, not this plugin's own, found by the canonical cross-plugin
+ * re-audit: an inactive `.nav-link` (the
+ * "Others" tab-overflow menu core renders on any form) reads through
+ * `--tblr-nav-link-color` -> `--tblr-gray-500`, never checked against a
+ * non-black dark body — 1.76:1. glpi-service already scoped the identical
+ * fix for its own view-switcher tabs; same root cause, same fix, wider net.
+ */
+:root[data-glpi-theme-dark="1"] .glpimajor-banner .nav-link,
+:root[data-glpi-theme-dark="1"] .glpimajor-declare .nav-link,
+:root[data-glpi-theme-dark="1"] .glpimajor-portal .nav-link,
+:root[data-glpi-theme-dark="1"] .glpimajor-view .nav-link,
+:root[data-glpi-theme-dark="1"] .glpimajor-form .nav-link,
+:root[data-glpi-theme-dark="1"] .glpimajor-config .nav-link {
+    color: color-mix(in srgb, var(--tblr-body-color), transparent 10%);
+}
+
+/*
+ * A third core-wide gap in the same family: the required-field `*` marker
+ * (`.text-red`, core's `showForm()` scaffolding) reads straight from
+ * `--tblr-red` with no auto-contrast — 2.95:1 on the maintenance form,
+ * found by the canonical cross-plugin re-audit. Same lift as the danger
+ * button above, same reason. `!important`: Tabler's own `.text-red` rule
+ * carries it (twice — a Bootstrap-utility layer AND a text-opacity layer),
+ * so the first version of this rule (without it) was a silent no-op —
+ * confirmed by reading tabler.min.css, not by re-trusting the first attempt.
+ */
+:root[data-glpi-theme-dark="1"] .glpimajor-banner .text-red,
+:root[data-glpi-theme-dark="1"] .glpimajor-declare .text-red,
+:root[data-glpi-theme-dark="1"] .glpimajor-portal .text-red,
+:root[data-glpi-theme-dark="1"] .glpimajor-view .text-red,
+:root[data-glpi-theme-dark="1"] .glpimajor-form .text-red,
+:root[data-glpi-theme-dark="1"] .glpimajor-config .text-red {
+    color: color-mix(in srgb, var(--tblr-red), white 40%) !important;
+}
+
+/*
+ * The PIR's "Complete" badge (`bg-green-lt`) measured 4.31:1, just under
+ * the floor — the same tint-assumes-a-near-black-surface gap glpi-vuln/
+ * glpi-entitle/glpi-change/glpi-signal/glpi-report each found for their own
+ * badges, found here by the canonical cross-plugin re-audit.
+ */
+:root[data-glpi-theme-dark="1"] .glpimajor-view .badge.bg-green-lt {
+    color: color-mix(in srgb, var(--tblr-green), white 35%) !important;
+}
+
+/*
+ * The composer's inline refusal reads straight from --tblr-danger, which is
+ * the same never-rechecked-against-a-dark-surface red the .btn-outline-danger
+ * lift above exists for (2.95:1 on this plugin's card surfaces). Same lift,
+ * same percentage.
+ */
+:root[data-glpi-theme-dark="1"] .glpimajor-view .glpimajor-composer-error {
+    color: color-mix(in srgb, var(--tblr-danger), white 40%);
+}
+
+/*
+ * A completed PIR's answer fields are read-only `<textarea disabled>`
+ * elements — core's disabled-control styling sets their background to
+ * `var(--tblr-body-color)` itself (a token meant for *text*, not a
+ * background) while their text stays a lighter tint of the same colour:
+ * both land within a few RGB steps of each other, 1.24:1, the same
+ * near-identical trap DARKTHEME.md's trap 1 describes for panels, just
+ * triggered by a different core rule. Explicit dark background restores
+ * the plugin's own surface and full-strength body text over it.
+ */
+:root[data-glpi-theme-dark="1"] .glpimajor-view textarea.form-control:disabled {
+    background-color: var(--tblr-bg-surface-tertiary);
+    color: var(--tblr-body-color);
+    opacity: 1;
+}
+
+/*
+ * The commander/comms avatar initials ("MO") measured 3.79:1 — core's
+ * `.avatar` picks a per-name hash swatch from a fixed Tabler palette
+ * designed for black text (the light theme default); GLPI's dark palette
+ * overrides the text colour to a dim navy that is never re-checked against
+ * that swatch. Sampled all 17 distinct swatch colours this instance's real
+ * users hash to (`front/user.php`, `.avatar[style]`): black clears 4.5:1 on
+ * every one, worst case 5.47:1 — white fails every one (best 3.84:1), which
+ * is what glpi-service's first attempt at this same gap tried and measured
+ * worse, not better. Same finding, same fix, wider net (glpi-service's own
+ * CSS carries the full sampling comment).
+ */
+:root[data-glpi-theme-dark="1"] .glpimajor-view .avatar,
+:root[data-glpi-theme-dark="1"] .glpimajor-form .avatar {
+    color: #000 !important;
+}
