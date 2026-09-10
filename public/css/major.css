@@ -801,3 +801,112 @@
 :root[data-glpi-theme-dark="1"] .glpimajor-form .avatar {
     color: #000 !important;
 }
+
+/* ===========================================================================
+ * The status page, inside the self-service interface
+ * ===========================================================================
+ *
+ * `PortalStatus::show()` prints `Renderer::body()` — the same markup the
+ * published file carries — into the interface's chrome. Almost all of it is
+ * the framework's own vocabulary (card, badge, alert, list-group, status-dot,
+ * container-narrow) and is already styled, which is the point of having
+ * converted that markup to it. What is left is the handful of classes the
+ * renderer invents for shapes the framework has no name for.
+ *
+ * These are the same declarations `Renderer::css()` emits for the published
+ * file, scoped to this wrapper. Two copies is not ideal; the alternative is
+ * serving a stylesheet to the public page, which it cannot have — it is a flat
+ * file that makes no external request. Keep them in step: if one changes, the
+ * two surfaces stop looking alike, which is the whole thing this was for.
+ */
+.glpimajor-portal-status .section-head { margin: 1.5rem 0 .75rem; }
+.glpimajor-portal-status .section-note { margin: -.5rem 0 .75rem; font-size: .8125rem; }
+.glpimajor-portal-status .ico { width: 1.25rem; height: 1.25rem; flex: none; }
+.glpimajor-portal-status .meta { margin-bottom: .75rem; }
+.glpimajor-portal-status .log { margin-top: .75rem; }
+
+.glpimajor-portal-status .entry-head {
+    display: flex;
+    align-items: center;
+    gap: .5rem;
+    flex-wrap: wrap;
+    margin-bottom: .25rem;
+}
+.glpimajor-portal-status .entry-state { font-weight: 600; }
+.glpimajor-portal-status .entry-at { margin-left: auto; font-size: .8125rem; }
+
+/* Customer prose. A single unbroken string — a URL somebody pasted into an
+ * update — must wrap rather than widen the card past the page. */
+.glpimajor-portal-status .body { overflow-wrap: anywhere; }
+.glpimajor-portal-status .body p { margin: .5em 0; }
+.glpimajor-portal-status .body p:first-child { margin-top: 0; }
+.glpimajor-portal-status .body p:last-child { margin-bottom: 0; }
+
+.glpimajor-portal-status .pm {
+    background: var(--tblr-bg-surface-secondary);
+    margin: .75rem 0;
+}
+.glpimajor-portal-status .pm-at { font-size: .8125rem; }
+
+/* The resolved-incident disclosure. The chevron is drawn rather than a marker,
+ * so it rotates on [open] and so no glyph goes missing on a locale's fallback
+ * font. */
+.glpimajor-portal-status .past-sum { cursor: pointer; list-style: none; }
+.glpimajor-portal-status .past-sum::-webkit-details-marker { display: none; }
+.glpimajor-portal-status .past-sum::marker { content: ""; }
+.glpimajor-portal-status .past-sum::before {
+    content: "";
+    width: .45rem;
+    height: .45rem;
+    flex: none;
+    margin-top: -.2rem;
+    border-right: 2px solid var(--tblr-secondary);
+    border-bottom: 2px solid var(--tblr-secondary);
+    transform: rotate(-45deg);
+}
+.glpimajor-portal-status details[open] > .past-sum::before {
+    transform: rotate(45deg);
+    margin-top: -.35rem;
+}
+.glpimajor-portal-status details.card-past > .past-sum { border-bottom: 0; }
+.glpimajor-portal-status details[open].card-past > .past-sum {
+    border-bottom: 1px solid var(--tblr-border-color);
+}
+.glpimajor-portal-status .past-sum:hover .card-title { text-decoration: underline; }
+.glpimajor-portal-status .past-sum:focus-visible {
+    outline: 2px solid var(--tblr-primary);
+    outline-offset: -2px;
+}
+.glpimajor-portal-status .past-at { font-size: .8125rem; margin-left: auto; }
+
+/*
+ * Three shapes the framework names but lays out differently from the published
+ * page, so without these the two surfaces disagree in ways that read as bugs:
+ * the banner icon sits flush against its sentence, and the disclosure chevron
+ * is jammed into the incident title.
+ *
+ * Scoped to the wrapper, so nothing else in the interface is touched.
+ */
+.glpimajor-portal-status .alert-title {
+    display: flex;
+    align-items: center;
+    gap: .5rem;
+    font-size: .875rem;
+    font-weight: 600;
+    margin-bottom: .25rem;
+}
+.glpimajor-portal-status .card-header {
+    display: flex;
+    align-items: center;
+    gap: .75rem;
+    flex-wrap: wrap;
+}
+.glpimajor-portal-status .card-title {
+    font-size: .875rem;
+    font-weight: 600;
+    margin: 0;
+    /* Grow, but let the badge and the timestamp keep their place on a narrow
+     * screen rather than being pushed off the card. */
+    flex: 1 1 14rem;
+    overflow-wrap: anywhere;
+}

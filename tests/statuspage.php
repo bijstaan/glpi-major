@@ -210,7 +210,7 @@ check(
 );
 check(
     'an incident says when it started, as an element',
-    (bool) preg_match('#<p class="meta">Started <time #', $html)
+    (bool) preg_match('#<p class="meta text-secondary">Started <time #', $html)
 );
 check(
     'the "last updated" stamp names its timezone',
@@ -433,20 +433,20 @@ check(
 );
 check(
     'the summary line is the title',
-    (bool) preg_match('#<summary class="past-sum">\s*<h3>Email delivery was delayed</h3>#', $fold)
+    (bool) preg_match('#<summary class="card-header past-sum">\s*<h3 class="card-title">Email delivery was delayed</h3>#', $fold)
 );
 check(
     'the summary carries the final state',
-    (bool) preg_match('#<summary.*?pill-ok.*?Resolved.*?</summary>#s', $fold)
+    (bool) preg_match('#<summary.*?bg-success-lt.*?Resolved.*?</summary>#s', $fold)
 );
 check(
     'and when it was resolved, as a <time> element',
-    (bool) preg_match('#<span class="past-at"><time #', $fold)
+    (bool) preg_match('#<span class="past-at text-secondary"><time #', $fold)
 );
 check(
     'the full record is inside the fold, not gone',
     str_contains($fold, 'All delayed messages have been delivered.')
-        && str_contains($fold, '<ol class="log">')
+        && str_contains($fold, '<ol class="log list-group list-group-flush">')
 );
 check(
     'no <details> is forced open',
@@ -462,16 +462,16 @@ check(
 section('A published post-mortem leads the record');
 
 check('the post-mortem text is present', str_contains($fold, 'A mail store filled faster than it drained'));
-check('it is titled', str_contains($fold, '<h4>Post-mortem</h4>'));
+check('it is titled', str_contains($fold, '<h4 class="card-title">Post-mortem</h4>'));
 check(
     'it carries its publication stamp',
-    (bool) preg_match('#<p class="pm-at">Published <time #', $fold)
+    (bool) preg_match('#<p class="pm-at text-secondary">Published <time #', $fold)
 );
 check(
     'it comes before the update timeline',
-    strpos($fold, '<section class="pm">') !== false
-        && strpos($fold, '<ol class="log">') !== false
-        && strpos($fold, '<section class="pm">') < strpos($fold, '<ol class="log">'),
+    strpos($fold, '<section class="pm card card-sm">') !== false
+        && strpos($fold, '<ol class="log list-group list-group-flush">') !== false
+        && strpos($fold, '<section class="pm card card-sm">') < strpos($fold, '<ol class="log list-group list-group-flush">'),
     'the finished account beats the play-by-play'
 );
 check(
@@ -491,8 +491,8 @@ $withpm = Renderer::document(fixture([
 ]));
 check(
     'an open incident can carry one too, first',
-    strpos($withpm, '<section class="pm">') !== false
-        && strpos($withpm, '<section class="pm">') < strpos($withpm, '<ol class="log">')
+    strpos($withpm, '<section class="pm card card-sm">') !== false
+        && strpos($withpm, '<section class="pm card card-sm">') < strpos($withpm, '<ol class="log list-group list-group-flush">')
 );
 
 $without = Renderer::document(fixture([
@@ -507,7 +507,7 @@ $without = Renderer::document(fixture([
 ]));
 check(
     'no post-mortem, no heading and no box',
-    !str_contains($without, 'Post-mortem') && !str_contains($without, 'class="pm"')
+    !str_contains($without, 'Post-mortem') && !str_contains($without, 'class="pm card')
 );
 
 $blankpm = Renderer::document(fixture([
@@ -596,5 +596,45 @@ check(
     strlen(Renderer::document(fixture(['brand' => ['name' => 'Northwind IT']]))) < 65536,
     strlen(Renderer::document(fixture(['brand' => ['name' => 'Northwind IT']]))) . ' bytes'
 );
+
+section('The signed-in view renders from the same body');
+
+// The in-portal page is not a second renderer. PortalStatus prints
+// Renderer::body() into the interface's chrome, and the published file wraps
+// the identical call in its own document — so the two surfaces cannot drift
+// into showing a customer different things, which is the whole reason the
+// markup was converted to the interface's own vocabulary.
+
+$body = Renderer::body(fixture());
+
+check(
+    'the published document contains the body verbatim',
+    str_contains(Renderer::document(fixture()), $body),
+    'one layout, two frames'
+);
+
+// The frame is the only difference. A body carrying any of these would be
+// injecting a second document into the middle of a page that already has one.
+foreach (['<!DOCTYPE', '<html', '<head', '<body', '<style', '</html>'] as $chrome) {
+    check(
+        "the body carries no $chrome",
+        !str_contains($body, $chrome)
+    );
+}
+
+check('the body still carries the banner', str_contains($body, 'alert-title'));
+check(
+    'the body still carries the sections',
+    str_contains($body, 'Current issues') && str_contains($body, 'Planned maintenance')
+);
+
+// Signing in does not entitle a customer to more than the address does. The
+// same redaction check the document gets, applied to what the portal prints.
+foreach ($forbidden as $word) {
+    check(
+        "the body leaks no \"$word\" either",
+        preg_match('/\b' . preg_quote($word, '/') . '\b/i', $body) === 0
+    );
+}
 
 finish();

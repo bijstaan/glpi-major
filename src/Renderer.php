@@ -23,6 +23,26 @@ namespace GlpiPlugin\Glpimajor;
  * enough to embed. A page loaded during an outage is not the moment to depend
  * on a second request succeeding.
  *
+ * ## It looks like GLPI, without being able to load GLPI's stylesheet
+ *
+ * The markup uses Tabler's vocabulary — `card`, `card-header`, `card-title`,
+ * `card-status-start`, `badge bg-*-lt`, `list-group`, `status-dot`, `alert`,
+ * `text-secondary` — and css() below reproduces just enough of Tabler to render
+ * those shapes, using the token values GLPI 11 actually ships. So a customer
+ * moving between the helpdesk portal and this page sees one product.
+ *
+ * It cannot simply *link* GLPI's stylesheet, for the same reason it cannot be a
+ * logged-in page: the document has to stand alone. It is written to disk once,
+ * served without touching PHP's session or the database, and is expected to
+ * survive being saved and mailed on. A `<link>` to a build-hashed asset would
+ * break on the next GLPI upgrade and add a second request to the one page whose
+ * whole job is to work when things are going badly.
+ *
+ * The palette is GLPI's **stock** one, not the running instance's. A
+ * whitelabelled primary colour lives in a stylesheet this page cannot read, and
+ * customer branding already arrives through {@see Brand} — the logo, the name
+ * and the wording.
+ *
  * No word from GLPI's vocabulary appears anywhere in the output. Not "ticket",
  * not "entity", not "requester" — a customer does not have any of those, and
  * seeing one tells them they are reading someone's internal tooling.
@@ -70,8 +90,49 @@ final class Renderer
      */
     public static function document(array $data): string
     {
-        $title    = self::str($data['title'] ?? '') !== '' ? self::str($data['title']) : 'Service status';
-        $brand    = is_array($data['brand'] ?? null) ? $data['brand'] : [];
+        $title = self::str($data['title'] ?? '') !== '' ? self::str($data['title']) : 'Service status';
+        $brand = is_array($data['brand'] ?? null) ? $data['brand'] : [];
+        $tz    = self::zone(self::str($data['timezone'] ?? ''));
+        $now   = (int) ($data['generated_at'] ?? 0);
+
+        $html  = "<!DOCTYPE html>\n";
+        $html .= "<html lang=\"en\">\n<head>\n";
+        $html .= "<meta charset=\"utf-8\">\n";
+        $html .= "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n";
+        // A status page is for the people who were given its address. It is not
+        // a thing to be found by searching for the customer's name.
+        $html .= "<meta name=\"robots\" content=\"noindex, nofollow\">\n";
+        $html .= '<title>' . self::e($title) . "</title>\n";
+        $html .= "<style>\n" . self::css() . "</style>\n";
+        $html .= "</head>\n<body>\n";
+
+        $html .= self::header($title, $brand);
+        $html .= "<main>\n";
+        $html .= self::body($data);
+        $html .= "</main>\n";
+        $html .= self::footer($brand, $now, $tz);
+        $html .= "</body>\n</html>\n";
+
+        return $html;
+    }
+
+    /**
+     * The content, with no page chrome around it.
+     *
+     * Two surfaces render this: the published file, which wraps it in its own
+     * document and its own copy of the stylesheet, and the in-portal view,
+     * which drops it into the interface's chrome and lets the real stylesheet
+     * style it. Both get the same markup because the markup is the interface's
+     * own vocabulary — that is what the conversion to it bought, and the reason
+     * this can be one method instead of two that drift.
+     *
+     * Still pure, and still the same allow-listed array in both cases: a
+     * customer signing in does not become entitled to more than a customer
+     * holding the address, so there is no "internal" variant of this and no
+     * flag that would produce one.
+     */
+    public static function body(array $data): string
+    {
         $tz       = self::zone(self::str($data['timezone'] ?? ''));
         $now      = (int) ($data['generated_at'] ?? 0);
         $open     = [];
@@ -93,29 +154,12 @@ final class Renderer
             static fn($m): bool => is_array($m)
         ));
 
-        $html  = "<!DOCTYPE html>\n";
-        $html .= "<html lang=\"en\">\n<head>\n";
-        $html .= "<meta charset=\"utf-8\">\n";
-        $html .= "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n";
-        // A status page is for the people who were given its address. It is not
-        // a thing to be found by searching for the customer's name.
-        $html .= "<meta name=\"robots\" content=\"noindex, nofollow\">\n";
-        $html .= '<title>' . self::e($title) . "</title>\n";
-        $html .= "<style>\n" . self::css() . "</style>\n";
-        $html .= "</head>\n<body>\n";
-
-        $html .= self::header($title, $brand);
-        $html .= self::summary($open, $maintenance, $now, $tz);
-
-        $html .= "<main class=\"wrap\">\n";
-
+        $html  = self::summary($open, $maintenance, $now, $tz);
+        $html .= "<div class=\"container-narrow\">\n";
         $html .= self::openSection($open, $tz);
         $html .= self::maintenanceSection($maintenance, $tz);
         $html .= self::historySection($resolved, $tz, (int) ($data['history_days'] ?? 30));
-
-        $html .= "</main>\n";
-        $html .= self::footer($brand, $now, $tz);
-        $html .= "</body>\n</html>\n";
+        $html .= "</div>\n";
 
         return $html;
     }
@@ -127,16 +171,16 @@ final class Renderer
         $logo = self::str($brand['logo'] ?? '');
         $name = self::str($brand['name'] ?? '');
 
-        $html = "<header class=\"top\">\n<div class=\"wrap top-in\">\n";
+        $html = "<header class=\"page-header\">\n<div class=\"container-narrow page-header-inner\">\n";
 
         if ($logo !== '') {
             $alt = $name !== '' ? $name : $title;
             $html .= '<img class="logo" src="' . self::e($logo) . '" alt="' . self::e($alt) . "\">\n";
         } elseif ($name !== '') {
-            $html .= '<span class="wordmark">' . self::e($name) . "</span>\n";
+            $html .= '<span class="navbar-brand">' . self::e($name) . "</span>\n";
         }
 
-        $html .= '<h1>' . self::e($title) . "</h1>\n";
+        $html .= '<h1 class="page-title">' . self::e($title) . "</h1>\n";
         $html .= "</div>\n</header>\n";
 
         return $html;
@@ -175,12 +219,15 @@ final class Renderer
             };
         }
 
-        $html  = '<section class="banner banner-' . $tone . "\">\n<div class=\"wrap\">\n";
-        $html .= '<p class="banner-line">' . self::icon($tone) . self::e($line) . "</p>\n";
+        // Tabler's own alert, in the same shape the rest of the suite emits one:
+        // a title line with an icon, and a muted line under it.
+        $html  = "<div class=\"container-narrow\">\n";
+        $html .= '<div class="alert alert-' . self::alertTone($tone) . '" role="alert">' . "\n";
+        $html .= '<h2 class="alert-title">' . self::icon($tone) . self::e($line) . "</h2>\n";
         if ($sub !== '') {
-            $html .= '<p class="banner-sub">' . self::e($sub) . "</p>\n";
+            $html .= '<div class="text-secondary">' . self::e($sub) . "</div>\n";
         }
-        $html .= "</div>\n</section>\n";
+        $html .= "</div>\n</div>\n";
 
         return $html;
     }
@@ -191,7 +238,7 @@ final class Renderer
             return '';
         }
 
-        $html = "<h2>Current issues</h2>\n";
+        $html = "<h2 class=\"h3 section-head\">Current issues</h2>\n";
         foreach ($open as $incident) {
             $html .= self::card($incident, $tz);
         }
@@ -214,7 +261,7 @@ final class Renderer
             return '';
         }
 
-        $html = "<h2>Planned maintenance</h2>\n";
+        $html = "<h2 class=\"h3 section-head\">Planned maintenance</h2>\n";
 
         foreach ($shown as $window) {
             $state   = (string) ($window['state'] ?? Maintenance::SCHEDULED);
@@ -225,13 +272,15 @@ final class Renderer
             $content = self::str($window['content'] ?? '');
 
             $html .= "<article class=\"card\">\n";
-            $html .= "<div class=\"card-head\">\n";
-            $html .= '<h3>' . self::e(self::str($window['title'] ?? 'Planned maintenance')) . "</h3>\n";
-            $html .= '<span class="pill pill-' . $tone . '">' . self::e($badge) . "</span>\n";
-            $html .= "</div>\n";
+            $html .= "<div class=\"card-header\">\n";
+            $html .= '<h3 class="card-title">'
+                   . self::e(self::str($window['title'] ?? 'Planned maintenance')) . "</h3>\n";
+            $html .= '<span class="badge bg-' . self::alertTone($tone) . '-lt">'
+                   . self::e($badge) . "</span>\n";
+            $html .= "</div>\n<div class=\"card-body\">\n";
 
             if ($start > 0) {
-                $html .= '<p class="window">' . self::when($start, $tz);
+                $html .= '<p class="text-secondary">' . self::when($start, $tz);
                 if ($end > $start) {
                     $html .= ' &ndash; ' . self::when($end, $tz);
                 }
@@ -242,7 +291,7 @@ final class Renderer
                 $html .= '<div class="body">' . self::prose($content) . "</div>\n";
             }
 
-            $html .= "</article>\n";
+            $html .= "</div>\n</article>\n";
         }
 
         return $html;
@@ -268,8 +317,8 @@ final class Renderer
         $total = count($resolved);
         $shown = array_slice($resolved, 0, self::HISTORY_MAX);
 
-        $html  = '<h2>Recently resolved</h2>' . "\n";
-        $html .= '<p class="note">Issues resolved in the last '
+        $html  = '<h2 class="h3 section-head">Recently resolved</h2>' . "\n";
+        $html .= '<p class="text-secondary section-note">Issues resolved in the last '
                . self::e(self::spell($days)) . ' days. Select one for the full record.</p>' . "\n";
 
         foreach ($shown as $incident) {
@@ -277,7 +326,7 @@ final class Renderer
         }
 
         if ($total > count($shown)) {
-            $html .= '<p class="note more">Showing the ' . self::e(self::spell(count($shown)))
+            $html .= '<p class="text-secondary section-note">Showing the ' . self::e(self::spell(count($shown)))
                    . ' most recent of ' . self::e(self::spell($total))
                    . ' resolved issues from this period.</p>' . "\n";
         }
@@ -295,10 +344,16 @@ final class Renderer
      */
     private static function card(array $incident, \DateTimeZone $tz): string
     {
+        // `card-status-start` is Tabler's own left accent stripe, which is what
+        // the hand-rolled `border-left` used to be.
         $html  = "<article class=\"card card-open\">\n";
+        $html .= '<div class="card-status-start bg-'
+               . self::alertTone(self::tone((string) ($incident['state'] ?? Incident::INVESTIGATING)))
+               . "\"></div>\n";
         $html .= self::head($incident);
+        $html .= "<div class=\"card-body\">\n";
         $html .= self::record($incident, $tz);
-        $html .= "</article>\n";
+        $html .= "</div>\n</article>\n";
 
         return $html;
     }
@@ -318,15 +373,16 @@ final class Renderer
         $stamp = $ended > 0 ? $ended : (int) ($incident['started_at'] ?? 0);
 
         $html  = "<details class=\"card card-past\">\n";
-        $html .= "<summary class=\"past-sum\">\n";
-        $html .= '<h3>' . self::e(self::str($incident['title'] ?? 'Service issue')) . "</h3>\n";
-        $html .= '<span class="pill pill-' . self::tone($state) . '">'
+        $html .= "<summary class=\"card-header past-sum\">\n";
+        $html .= '<h3 class="card-title">'
+               . self::e(self::str($incident['title'] ?? 'Service issue')) . "</h3>\n";
+        $html .= '<span class="badge bg-' . self::alertTone(self::tone($state)) . '-lt">'
                . self::e(self::stateLabel($state)) . "</span>\n";
         if ($stamp > 0) {
-            $html .= '<span class="past-at">' . self::when($stamp, $tz) . "</span>\n";
+            $html .= '<span class="past-at text-secondary">' . self::when($stamp, $tz) . "</span>\n";
         }
         $html .= "</summary>\n";
-        $html .= "<div class=\"past-body\">\n";
+        $html .= "<div class=\"card-body past-body\">\n";
         $html .= self::record($incident, $tz);
         $html .= "</div>\n</details>\n";
 
@@ -337,9 +393,10 @@ final class Renderer
     {
         $state = (string) ($incident['state'] ?? Incident::INVESTIGATING);
 
-        $html  = "<div class=\"card-head\">\n";
-        $html .= '<h3>' . self::e(self::str($incident['title'] ?? 'Service issue')) . "</h3>\n";
-        $html .= '<span class="pill pill-' . self::tone($state) . '">'
+        $html  = "<div class=\"card-header\">\n";
+        $html .= '<h3 class="card-title">'
+               . self::e(self::str($incident['title'] ?? 'Service issue')) . "</h3>\n";
+        $html .= '<span class="badge bg-' . self::alertTone(self::tone($state)) . '-lt">'
                . self::e(self::stateLabel($state)) . "</span>\n";
         $html .= "</div>\n";
 
@@ -379,7 +436,7 @@ final class Renderer
             // escapes what it interpolates and returns a <time> element —
             // passing that through e() a second time printed the tags as text
             // on the one page in this plugin a customer reads.
-            $html .= '<p class="meta">' . implode(' &middot; ', $meta) . "</p>\n";
+            $html .= '<p class="meta text-secondary">' . implode(' &middot; ', $meta) . "</p>\n";
         }
 
         // The finished account of an incident is worth more to a reader than
@@ -390,20 +447,23 @@ final class Renderer
             // Degrade honestly. An incident with no customer-facing update yet
             // says so, rather than rendering an empty box that reads as a page
             // that has stopped working.
-            $html .= '<p class="body empty">We are working on this and will post an update shortly.</p>' . "\n";
+            $html .= '<p class="body text-secondary">We are working on this and will post an update shortly.</p>' . "\n";
 
             return $html;
         }
 
-        $html .= "<ol class=\"log\">\n";
+        // Tabler's list group, and its own status dot for the state marker. An
+        // <ol> because the order is the point: this is a chronology, and a
+        // screen reader should say so.
+        $html .= "<ol class=\"log list-group list-group-flush\">\n";
         foreach ($updates as $update) {
             $at   = (int) ($update['at'] ?? 0);
             $ustate = (string) ($update['state'] ?? $state);
-            $html .= "<li class=\"entry\">\n";
+            $html .= "<li class=\"entry list-group-item\">\n";
             $html .= '<div class="entry-head">'
-                   . '<span class="dot dot-' . self::tone($ustate) . '"></span>'
+                   . '<span class="status-dot bg-' . self::alertTone(self::tone($ustate)) . '"></span>'
                    . '<span class="entry-state">' . self::e(self::stateLabel($ustate)) . '</span>'
-                   . '<span class="entry-at">' . self::when($at, $tz) . '</span>'
+                   . '<span class="entry-at text-secondary">' . self::when($at, $tz) . '</span>'
                    . "</div>\n";
             $html .= '<div class="body">' . self::prose(self::str($update['content'] ?? '')) . "</div>\n";
             $html .= "</li>\n";
@@ -443,13 +503,14 @@ final class Renderer
 
         $at = (int) ($pm['published_at'] ?? 0);
 
-        $html  = "<section class=\"pm\">\n";
-        $html .= "<h4>Post-mortem</h4>\n";
+        $html  = "<section class=\"pm card card-sm\">\n";
+        $html .= "<div class=\"card-header\"><h4 class=\"card-title\">Post-mortem</h4></div>\n";
+        $html .= "<div class=\"card-body\">\n";
         if ($at > 0) {
-            $html .= '<p class="pm-at">Published ' . self::when($at, $tz) . "</p>\n";
+            $html .= '<p class="pm-at text-secondary">Published ' . self::when($at, $tz) . "</p>\n";
         }
         $html .= '<div class="body">' . self::prose($content) . "</div>\n";
-        $html .= "</section>\n";
+        $html .= "</div>\n</section>\n";
 
         return $html;
     }
@@ -461,10 +522,10 @@ final class Renderer
         $note  = self::str($brand['note'] ?? '');
         $name  = self::str($brand['name'] ?? '');
 
-        $html = "<footer class=\"foot\">\n<div class=\"wrap\">\n";
+        $html = "<footer class=\"footer\">\n<div class=\"container-narrow\">\n";
 
         if ($note !== '') {
-            $html .= '<p class="foot-note">' . self::prose($note) . "</p>\n";
+            $html .= '<p class="foot-note text-secondary">' . self::prose($note) . "</p>\n";
         }
 
         $contact = [];
@@ -478,7 +539,7 @@ final class Renderer
             $html .= '<p class="foot-contact">Need help? ' . implode(' &middot; ', $contact) . "</p>\n";
         }
 
-        $html .= '<p class="foot-stamp">Last updated ' . self::when($now, $tz, true) . "</p>\n";
+        $html .= '<p class="foot-stamp text-secondary">Last updated ' . self::when($now, $tz, true) . "</p>\n";
 
         if ($name !== '') {
             $html .= '<p class="foot-name">' . self::e($name) . "</p>\n";
@@ -642,97 +703,284 @@ final class Renderer
      * be handed a white rectangle. System fonts only: a webfont is a request to
      * somewhere else, and this page makes none.
      */
+    /**
+     * This page's tone words, in Tabler's colour vocabulary.
+     *
+     * The page speaks in service terms — ok, warn, down, plan — because that is
+     * what a customer is reading about. Tabler speaks in success / warning /
+     * danger / info. One map, in one place, rather than the two vocabularies
+     * being interleaved through the markup.
+     */
+    private static function alertTone(string $tone): string
+    {
+        return match ($tone) {
+            'ok'   => 'success',
+            'warn' => 'warning',
+            'plan' => 'info',
+            default => 'danger',
+        };
+    }
+
+    /**
+     * The whole stylesheet, inlined.
+     *
+     * Just enough Tabler to render the components this page uses, with the token
+     * values GLPI 11 actually ships — read off a running instance rather than
+     * guessed, and the stock palette rather than a whitelabelled one.
+     *
+     * **The comments in the returned CSS are part of the document.** Everything
+     * this method returns is served to a stranger, so the reasoning lives here,
+     * in a docblock that is not emitted, and the CSS itself carries only short
+     * structural markers. The suite's forbidden-word check reads the whole
+     * document including the `<style>` block, and it caught exactly this: an
+     * explanatory comment mentioning GLPI put the product's name on a page that
+     * must never carry it.
+     *
+     * For the same reason no comment here contains an HTML tag name — a literal
+     * `<summary>` inside a comment is harmless to a browser and makes any
+     * tag-balance check on the document meaningless.
+     *
+     * Dark mode follows the reader's own preference. The page is a standalone
+     * file with no way to know what theme the instance is using, and the
+     * reader's preference is the only signal it has — the right one for a page
+     * somebody opens at two in the morning.
+     *
+     * ## Every theme-varying colour is a custom property
+     *
+     * Not a rule inside the media query. A component that states its colour
+     * only in `@media (prefers-color-scheme: dark)` loses to any later rule of
+     * equal specificity, and since the dark block sits at the top of this
+     * stylesheet, *every* light component rule below it is later. The first
+     * cut of this did exactly that and rendered every dark-mode banner as a
+     * grey slab. The dark block now redefines tokens and nothing else, so
+     * source order stops being able to matter.
+     *
+     * ## The one place the palette is deliberately not the product's
+     *
+     * Badge and banner backgrounds, sizes, weights and radii are copied
+     * exactly. The **label ink** is darkened. The stock pairing is a brand
+     * colour on a 10% wash of itself, which measures 2.48:1 for the green and
+     * 1.97:1 for the amber against this page's own grounds — well under the
+     * 4.5:1 body text needs. That is defensible inside an application, where
+     * the reader signed in on a screen they chose and has every other cue
+     * around them. It is not defensible here: this page is read by whoever the
+     * outage hit, on whatever device is to hand, and the badge is the word that
+     * says whether their morning is ruined. Same hue, same saturation, less
+     * lightness — near-identical to look at, and legible. Measured after the
+     * change: badges 4.53–4.83:1, banner headings 4.50–4.52:1, body ink
+     * 9.28–10.31:1, on both the card and the page ground.
+     *
+     * The dark scheme needs no such treatment — the tints sit on a dark ground
+     * and the stock inks already clear the bar — except the red banner heading,
+     * which its own wash pulls to 4.10:1 and which is nudged to 4.52:1.
+     *
+     * The status dots keep the stock colours untouched. A dot is not text and
+     * never carries meaning alone: the state is written in words beside it
+     * every time, so the dot is decoration that agrees with the label.
+     */
     private static function css(): string
     {
         return <<<'CSS'
 :root{
-  --bg:#f6f7f9; --card:#fff; --ink:#1b2430; --muted:#5b6675; --line:#e3e7ec;
-  --ok:#1f7a4d; --ok-bg:#e8f5ee; --warn:#8a5a00; --warn-bg:#fdf2dc;
-  --down:#a32b2b; --down-bg:#fbeaea; --plan:#37507a; --plan-bg:#eaeff8;
+  --tblr-body-bg:#f5f7fb; --tblr-body-color:#374151; --tblr-secondary:#606f91;
+  --tblr-border-color:rgba(4,32,69,.1); --tblr-bg-surface:#fff;
+  --tblr-bg-surface-secondary:#fafbfc;
+  --tblr-primary:#206bc4; --tblr-success:#2fb344; --tblr-warning:#f59f00;
+  --tblr-danger:#d63939; --tblr-info:#80abe4;
+  --tblr-border-radius:6px;
+  --tblr-box-shadow-card:rgba(31,41,55,.04) 0 0 4px 0;
+
+  /*
+   * Tints, as tokens rather than as rules.
+   *
+   * A component whose colour is only stated inside a media block is a component
+   * whose colour loses to any later rule of equal specificity — which is how the
+   * first attempt rendered every dark-mode banner as a grey slab. Components
+   * below reference these and never a literal, so the dark block has only to
+   * redefine the token and order stops mattering.
+   */
+  --alert-success-bg:rgba(236,248,238,.55); --alert-success-bd:rgba(47,179,68,.2);
+  --alert-warning-bg:rgba(254,246,232,.55); --alert-warning-bd:rgba(245,159,0,.2);
+  --alert-danger-bg:rgba(252,236,236,.55);  --alert-danger-bd:rgba(214,57,57,.2);
+  --lt-success-bg:rgba(47,179,68,.1);
+  --lt-warning-bg:rgba(245,159,0,.1);
+  --lt-danger-bg:rgba(214,57,57,.1);
+  --lt-info-bg:rgba(128,171,228,.16);
+
+  /* Label inks, darkened for contrast. See the docblock. */
+  --lt-success-fg:#207b2f;              /* 4.83:1 on a card, 4.53:1 on the page */
+  --lt-warning-fg:#966200;              /* 4.80 / 4.50 */
+  --lt-danger-fg:#c72929;               /* 4.81 / 4.51 */
+  --lt-info-fg:#2969bf;                 /* 4.82 / 4.51 */
+  --alert-success-fg:#228232;           /* 4.51:1 on its own banner */
+  --alert-warning-fg:#9d6600;           /* 4.50 */
+  --alert-danger-fg:#d32d2d;            /* 4.52 */
 }
+/* ---------------------------------------------------------- dark preference */
 @media (prefers-color-scheme:dark){
   :root{
-    --bg:#11151b; --card:#171d25; --ink:#e6eaf0; --muted:#9aa6b6; --line:#252d38;
-    --ok:#5ec98d; --ok-bg:#132a1f; --warn:#e3b160; --warn-bg:#2c2213;
-    --down:#f08b8b; --down-bg:#2e1717; --plan:#9db6e6; --plan-bg:#161f2f;
+    --tblr-body-bg:#1a2234; --tblr-body-color:#e5e7eb; --tblr-secondary:#8a94a6;
+    --tblr-border-color:rgba(72,110,149,.24); --tblr-bg-surface:#182433;
+    --tblr-bg-surface-secondary:#1e2b3d;
+    --tblr-primary:#4d8fd6; --tblr-success:#4bbf5c; --tblr-warning:#f7b32b;
+    --tblr-danger:#e35d5d; --tblr-info:#80abe4;
+    --tblr-box-shadow-card:rgba(0,0,0,.24) 0 0 4px 0;
+
+    --alert-success-bg:rgba(47,179,68,.12); --alert-success-bd:rgba(75,191,92,.28);
+    --alert-warning-bg:rgba(245,159,0,.12); --alert-warning-bd:rgba(247,179,43,.28);
+    --alert-danger-bg:rgba(214,57,57,.14);  --alert-danger-bd:rgba(227,93,93,.3);
+    --lt-success-bg:rgba(75,191,92,.16);  --lt-success-fg:#7fd68c;
+    --lt-warning-bg:rgba(247,179,43,.16); --lt-warning-fg:#f7c260;
+    --lt-danger-bg:rgba(227,93,93,.18);   --lt-danger-fg:#f09a9a;
+    --lt-info-bg:rgba(128,171,228,.18);   --lt-info-fg:#9dc2ec;
+    --alert-success-fg:#4bbf5c; --alert-warning-fg:#f7b32b; --alert-danger-fg:#e56a6a;
   }
 }
 *{box-sizing:border-box}
 html{-webkit-text-size-adjust:100%}
 body{
-  margin:0; background:var(--bg); color:var(--ink);
-  font:16px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+  margin:0; background:var(--tblr-body-bg); color:var(--tblr-body-color);
+  font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,
+              "Helvetica Neue",Arial,sans-serif;
+  font-size:.875rem; line-height:1.4285714286;
 }
-.wrap{max-width:760px;margin:0 auto;padding:0 20px}
-.top{border-bottom:1px solid var(--line);background:var(--card)}
-.top-in{display:flex;align-items:center;gap:14px;padding:20px}
-.logo{max-height:40px;max-width:190px;width:auto;height:auto;display:block}
-.wordmark{font-weight:650;letter-spacing:.01em}
-.top h1{font-size:1rem;font-weight:550;color:var(--muted);margin:0 0 0 auto}
-.banner{padding:26px 0;border-bottom:1px solid var(--line)}
-.banner-ok{background:var(--ok-bg);color:var(--ok)}
-.banner-warn{background:var(--warn-bg);color:var(--warn)}
-.banner-down{background:var(--down-bg);color:var(--down)}
-.banner-line{display:flex;align-items:center;gap:10px;margin:0;font-size:1.3rem;font-weight:600}
-.banner-sub{margin:6px 0 0 34px;color:inherit;opacity:.85;font-size:.95rem}
-.ico{width:24px;height:24px;flex:none}
-main{padding:8px 0 40px}
-h2{font-size:.82rem;text-transform:uppercase;letter-spacing:.09em;color:var(--muted);
-   font-weight:650;margin:32px 0 12px}
-.note{margin:-6px 0 12px;color:var(--muted);font-size:.88rem}
-.card{background:var(--card);border:1px solid var(--line);border-radius:10px;
-      padding:18px 20px;margin:0 0 14px}
-.card-open{border-left:3px solid var(--down)}
-details.card{padding:0}
-.past-sum{display:flex;align-items:center;gap:12px;flex-wrap:wrap;
-          padding:13px 20px;cursor:pointer;list-style:none;border-radius:10px}
-.past-sum::-webkit-details-marker{display:none}
-.past-sum::marker{content:""}
-.past-sum::before{content:"";width:8px;height:8px;flex:none;margin-top:-3px;
-                  border-right:2px solid var(--muted);border-bottom:2px solid var(--muted);
-                  transform:rotate(-45deg)}
-details[open]>.past-sum::before{transform:rotate(45deg);margin-top:-6px}
-.past-sum h3{margin:0;font-size:1rem;font-weight:600;flex:1 1 220px;overflow-wrap:anywhere}
-.past-at{color:var(--muted);font-size:.84rem;margin-left:auto}
-.past-sum:hover h3{text-decoration:underline}
-.past-sum:focus-visible{outline:2px solid var(--plan);outline-offset:-2px}
-.past-body{padding:2px 20px 16px}
-.pm{margin:14px 0 2px;padding:12px 14px;border:1px solid var(--line);
-    border-left:3px solid var(--plan);border-radius:8px;background:var(--plan-bg)}
-.pm h4{margin:0;font-size:.78rem;font-weight:650;text-transform:uppercase;
-       letter-spacing:.08em;color:var(--plan)}
-.pm-at{margin:2px 0 0;color:var(--muted);font-size:.84rem}
-.pm .body{margin-top:8px}
-.note.more{margin:2px 0 0}
-.card-head{display:flex;align-items:flex-start;gap:12px;flex-wrap:wrap}
-.card-head h3{margin:0;font-size:1.08rem;font-weight:620;flex:1 1 260px;overflow-wrap:anywhere}
-.pill{flex:none;font-size:.75rem;font-weight:650;letter-spacing:.04em;text-transform:uppercase;
-      padding:4px 10px;border-radius:999px}
-.pill-ok{background:var(--ok-bg);color:var(--ok)}
-.pill-warn{background:var(--warn-bg);color:var(--warn)}
-.pill-down{background:var(--down-bg);color:var(--down)}
-.pill-plan{background:var(--plan-bg);color:var(--plan)}
-.meta,.window{margin:6px 0 0;color:var(--muted);font-size:.88rem}
-.log{list-style:none;margin:16px 0 0;padding:0;border-top:1px solid var(--line)}
-.entry{padding:14px 0 2px;border-bottom:1px solid var(--line)}
-.entry:last-child{border-bottom:0;padding-bottom:0}
-.entry-head{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:4px}
-.dot{width:9px;height:9px;border-radius:50%;flex:none}
-.dot-ok{background:var(--ok)} .dot-warn{background:var(--warn)} .dot-down{background:var(--down)}
-.entry-state{font-weight:620;font-size:.88rem}
-.entry-at{color:var(--muted);font-size:.84rem;margin-left:auto}
+h1,h2,h3,h4{margin:0; font-weight:600; line-height:1.25; color:inherit}
+p{margin:0 0 .5rem}
+p:last-child{margin-bottom:0}
+a{color:var(--tblr-primary)}
+
+/* -------------------------------------------------------------- container */
+.container-narrow{max-width:45rem;margin:0 auto;padding:0 1rem}
+
+/* ------------------------------------------------------------- page header */
+.page-header{
+  background:var(--tblr-bg-surface);
+  border-bottom:1px solid var(--tblr-border-color);
+  margin-bottom:1.5rem;
+}
+.page-header-inner{display:flex;align-items:center;gap:.75rem;padding-top:1rem;padding-bottom:1rem}
+.logo{max-height:2.5rem;max-width:12rem;width:auto;height:auto;display:block}
+.navbar-brand{font-weight:600;font-size:1rem}
+.page-title{font-size:1rem;font-weight:500;color:var(--tblr-secondary);margin-left:auto}
+
+/* --------------------------------------------------------------- headings */
+.h3{font-size:1rem}
+.h4{font-size:.875rem}
+.section-head{margin:1.5rem 0 .75rem}
+.section-note{margin:-.5rem 0 .75rem;font-size:.8125rem}
+
+/* ------------------------------------------------------------------ alert */
+/*
+ * Tinted ground, a fifth-opacity border, and text at the ordinary body colour.
+ * Only the icon and the headline take the tone — colouring the whole block is
+ * the thing that makes a banner look like it belongs to a different product.
+ */
+.alert{
+  position:relative;padding:.75rem 1rem;margin-bottom:1.5rem;
+  border:1px solid transparent;border-radius:var(--tblr-border-radius);
+  color:var(--tblr-body-color);
+}
+.alert-title{
+  display:flex;align-items:center;gap:.5rem;
+  font-size:.875rem;font-weight:600;margin-bottom:.25rem;
+}
+.alert-success{background:var(--alert-success-bg);border-color:var(--alert-success-bd)}
+.alert-warning{background:var(--alert-warning-bg);border-color:var(--alert-warning-bd)}
+.alert-danger{background:var(--alert-danger-bg);border-color:var(--alert-danger-bd)}
+.alert-success>.alert-title{color:var(--alert-success-fg)}
+.alert-warning>.alert-title{color:var(--alert-warning-fg)}
+.alert-danger>.alert-title{color:var(--alert-danger-fg)}
+.ico{width:1.25rem;height:1.25rem;flex:none}
+
+/* ------------------------------------------------------------------- card */
+.card{
+  position:relative;background:var(--tblr-bg-surface);
+  border:1px solid var(--tblr-border-color);
+  border-radius:var(--tblr-border-radius);
+  box-shadow:var(--tblr-box-shadow-card);
+  margin-bottom:1rem;
+}
+.card-header{
+  display:flex;align-items:center;gap:.75rem;flex-wrap:wrap;
+  padding:.75rem 1rem;border-bottom:1px solid var(--tblr-border-color);
+  min-height:3.5rem;
+}
+.card-title{font-size:.875rem;font-weight:600;margin:0;flex:1 1 14rem;overflow-wrap:anywhere}
+.card-body{padding:1rem}
+.card-sm>.card-header{padding:.5rem .75rem;min-height:0}
+.card-sm>.card-body{padding:.75rem}
+
+/* ----------------------------------------------------------- accent bar */
+.card-status-start{
+  position:absolute;top:0;bottom:0;left:0;width:2px;
+  border-top-left-radius:var(--tblr-border-radius);
+  border-bottom-left-radius:var(--tblr-border-radius);
+}
+.bg-success{background:var(--tblr-success)}
+.bg-warning{background:var(--tblr-warning)}
+.bg-danger{background:var(--tblr-danger)}
+.bg-info{background:var(--tblr-info)}
+
+/* ------------------------------------------------------------------ badge */
+.badge{
+  flex:none;display:inline-block;padding:.25rem .5rem;border-radius:100rem;
+  font-size:.75rem;font-weight:500;line-height:1;white-space:nowrap;
+}
+.bg-success-lt{background:var(--lt-success-bg);color:var(--lt-success-fg)}
+.bg-warning-lt{background:var(--lt-warning-bg);color:var(--lt-warning-fg)}
+.bg-danger-lt{background:var(--lt-danger-bg);color:var(--lt-danger-fg)}
+.bg-info-lt{background:var(--lt-info-bg);color:var(--lt-info-fg)}
+
+/* ------------------------------------------------------------- list group */
+.list-group{list-style:none;margin:0;padding:0}
+.list-group-item{padding:.75rem 0;border-top:1px solid var(--tblr-border-color)}
+.list-group-item:first-child{border-top:0;padding-top:.25rem}
+.list-group-item:last-child{padding-bottom:0}
+.log{margin-top:.75rem}
+
+/* ------------------------------------------------------------ state dot */
+.status-dot{
+  width:.5rem;height:.5rem;border-radius:100rem;flex:none;display:inline-block;
+}
+.entry-head{display:flex;align-items:center;gap:.5rem;flex-wrap:wrap;margin-bottom:.25rem}
+.entry-state{font-weight:600}
+.entry-at{margin-left:auto;font-size:.8125rem}
+
+/* --------------------------------------------------------------- specifics */
+.meta{margin-bottom:.75rem}
+.text-secondary{color:var(--tblr-secondary)}
+.body{overflow-wrap:anywhere}
 .body p{margin:.5em 0}
 .body p:first-child{margin-top:0}
 .body p:last-child{margin-bottom:0}
-.body{overflow-wrap:anywhere}
-.empty{color:var(--muted);font-style:italic}
-.unknown{color:var(--muted)}
-.foot{border-top:1px solid var(--line);background:var(--card);padding:24px 0 34px;
-      color:var(--muted);font-size:.88rem}
-.foot p{margin:.35em 0}
-.foot a{color:inherit}
-.foot-stamp{opacity:.85}
-.foot-name{margin-top:12px;font-weight:600;color:var(--ink);opacity:.7}
+
+.pm{background:var(--tblr-bg-surface-secondary);margin:.75rem 0}
+
+/* ------------------------------------------------- the resolved disclosure */
+.past-sum{cursor:pointer;list-style:none}
+.past-sum::-webkit-details-marker{display:none}
+.past-sum::marker{content:""}
+.past-sum::before{
+  content:"";width:.45rem;height:.45rem;flex:none;margin-top:-.2rem;
+  border-right:2px solid var(--tblr-secondary);border-bottom:2px solid var(--tblr-secondary);
+  transform:rotate(-45deg);
+}
+details[open]>.past-sum::before{transform:rotate(45deg);margin-top:-.35rem}
+details.card-past>.past-sum{border-bottom:0}
+details[open].card-past>.past-sum{border-bottom:1px solid var(--tblr-border-color)}
+.past-sum:hover .card-title{text-decoration:underline}
+.past-sum:focus-visible{outline:2px solid var(--tblr-primary);outline-offset:-2px}
+.past-at{font-size:.8125rem;margin-left:auto}
+
+/* ----------------------------------------------------------------- footer */
+.footer{
+  border-top:1px solid var(--tblr-border-color);background:var(--tblr-bg-surface);
+  padding:1.5rem 0 2rem;margin-top:2rem;color:var(--tblr-secondary);font-size:.8125rem;
+}
+.footer p{margin:.25rem 0}
+.footer a{color:inherit}
+.foot-name{margin-top:.75rem;font-weight:600;color:var(--tblr-body-color);opacity:.7}
+main{padding-bottom:1rem}
 CSS;
     }
 }

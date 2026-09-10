@@ -181,6 +181,19 @@ anything that knows what a ticket is.
   request at all; over the ceiling it is linked, and the settings page says which
   it did. Without glpi-whitelabel, the page shows a plain wordmark from this
   plugin's own settings.
+- **Look** — the page is built from GLPI 11's own visual vocabulary: Tabler
+  cards, badges, alerts, list groups and status dots, with the same tokens the
+  interface uses. A customer who has seen the self-service portal recognises the
+  page, and it matches the client-facing project pages in **glpi-project**.
+  It cannot simply *link* GLPI's stylesheet — the page is a flat file served
+  without a session, and a `<link>` to the instance would defeat both the
+  "no external request" property and the caching. So the CSS is a small
+  hand-written subset of Tabler, carrying real token values, embedded inline. It
+  is the **stock** palette rather than the running instance's, because the file
+  is generated once and read by people who never log in. It follows
+  `prefers-color-scheme`, and every theme-varying colour is a custom property
+  redefined in the dark block — a component that states its colour inside the
+  media query loses to any later rule of equal specificity.
 - **No session** — the path is registered as stateless from
   `plugin_glpimajor_boot()`, which is early enough in GLPI's boot to be believed:
   a customer reading the page is handed no cookie and leaves no session file
@@ -217,13 +230,27 @@ into an email. Now the portal carries it.
 
 ![The self-service portal home page with a calm status banner above the tiles, naming the customer-visible title and linking to the status page](docs/screenshots/major-08-portal-banner.png)
 
+- **A status page inside the portal** — a requester who is signed in gets the
+  status page as an ordinary portal page, in the interface's own chrome, rather
+  than being sent out to the public file. Same data, same allow-list, same
+  layout: `PortalStatus::show()` prints `Renderer::body()`, which is the
+  identical call the published file wraps in its own document. Signing in does
+  not entitle a customer to more than the address does, so there is no
+  "internal" variant of it and the test suite runs the same redaction checks
+  over both. There is **no id in the URL** — the organisation comes from the
+  session, so there is nothing to tamper with and nothing to enumerate. The
+  public address still appears on it, offered as something to pass on to the
+  rest of their office.
 - **While something is happening** — a banner on the portal home page with the
   customer-visible title, the state in the status page's words, and a link to
-  that requester's own entity's page. It also covers planned work that is under
-  way or starting within the day.
+  the in-portal page. It also covers planned work that is under way or starting
+  within the day.
 - **When nothing is** — a standing **Service status** entry in the portal
   navigation, beside Home and FAQ. Shown only when that entity has a live
   address; a link to a page that does not exist is worse than no link.
+  Both the banner and this entry get their target from one place,
+  `PortalStatus::linkFor()`, so they cannot send the same reader to two
+  different pages.
 - **What a requester never sees** — the commander, the comms owner, the ticket's
   own internal title, or an update of any audience. The banner carries the
   customer-visible title and a state label and nothing else.
@@ -238,6 +265,13 @@ into an email. Now the portal carries it.
 Both surfaces are switched on by default and both do nothing at all until
 publishing is on and the entity has an address. Either can be switched off
 independently in the settings.
+
+The two audiences stay separate on purpose. The token URL is how the page
+reaches somebody with **no account** — during an outage, from a link in an
+email, with no session and no cookie — and none of that changes. The in-portal
+page is for somebody who is already signed in, whose session already says which
+organisation they belong to and who should not have to leave the interface to
+read it.
 
 The mechanism, for anyone maintaining this against a future GLPI: the banner is
 `Hooks::DISPLAY_CENTRAL`, which is the only plugin hook GLPI 11's helpdesk home

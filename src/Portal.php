@@ -326,7 +326,11 @@ final class Portal
         echo '</ul>';
 
         echo "<div class='glpimajor-portal-foot'>";
-        echo "<a class='glpimajor-portal-link' href='" . $e($state['href']) . "'>"
+        // The in-portal page for somebody who can open it, the public address
+        // otherwise. PortalStatus decides; this must not have its own opinion,
+        // or the banner and the navigation entry send the same reader to two
+        // different places.
+        echo "<a class='glpimajor-portal-link' href='" . $e(PortalStatus::linkFor($state)) . "'>"
            . __s('Read the latest updates', 'glpimajor') . '</a>';
         echo "<span class='glpimajor-portal-note'>"
            . __s('Your ticket is still with us. There is no need to raise another one for this.',
@@ -376,7 +380,7 @@ final class Portal
             'icon'  => 'ti ti-activity-heartbeat',
             // Root-relative without root_doc: the menu template runs it through
             // twig's path(), which prefixes root_doc itself.
-            'default' => $state['path'],
+            'default' => PortalStatus::linkFor($state, 'path'),
         ];
 
         return $menu;
