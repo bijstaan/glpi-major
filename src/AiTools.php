@@ -20,16 +20,27 @@ use Ticket;
  * fourteen technicians investigating one fault, which is the failure this
  * plugin exists to prevent.
  *
- * Two tools. `major_open_incidents` is the sweep: what is declared and still
+ * Five tools. `major_open_incidents` is the sweep: what is declared and still
  * open in the entities the user can see. `major_incident` is the read: one
  * incident's roles, its promised next update, and the updates already published
  * — which is what somebody answering an affected customer needs, and is also
  * what stops the assistant inventing a reassurance nobody agreed to.
  *
- * **Both are read-only, and the read stays read-only in a way worth naming.**
- * `Pir::forIncident()` creates a review row when there isn't one, so it is not
- * called here at all; `Portal::state()` writes a cache entry; `Affected::recount()`
- * writes the denormalised counter. None of them appear below.
+ * The other three are the parts of an incident that outlive it.
+ * `major_timeline` reconstructs what happened when — including the silences,
+ * which is what a review is usually about. `major_actions` is what was agreed
+ * afterwards and whether anybody did it, the half of post-incident review that
+ * quietly rots. `major_maintenance` is the opposite question and the one asked
+ * most often at the service desk: is this outage something the customer was
+ * already told about?
+ *
+ * **All five are read-only, and the reads stay read-only in a way worth
+ * naming.** `Pir::forIncident()` *creates* a review row when there isn't one,
+ * so it is only ever called here with `$create = false`; `Portal::state()`
+ * writes a cache entry; `Affected::recount()` writes the denormalised counter.
+ * Neither of those two appears below at all. A tool that quietly created a
+ * post-incident review by being asked whether one existed would put an empty
+ * draft in a manager's queue for every question a model asked.
  *
  * Gated on `plugin_glpimajor_declare` READ — the right every ticket reader is
  * installed with, and the one that shows the banner on a ticket. Entity scoping
@@ -49,7 +60,13 @@ final class AiTools
     /** @return Tool[] */
     public static function all(): array
     {
-        return [self::open(), self::detail()];
+        return [
+            self::open(),
+            self::detail(),
+            self::timeline(),
+            self::actions(),
+            self::maintenance(),
+        ];
     }
 
     // ----------------------------------------------------------------- open
@@ -240,6 +257,313 @@ final class AiTools
                   . 'wording to reuse.'
                 : 'Updates are newest first.',
         ], static fn($v): bool => $v !== null);
+    }
+
+    // ------------------------------------------------------------- timeline
+
+    private static function timeline(): Tool
+    {
+        return new Tool(
+            name: 'major_timeline',
+            description: 'What actually happened during a major incident, in order: when it was '
+                . 'declared, every update and who it went to, the state changes, and when it was '
+                . 'resolved. Use it for a post-incident review, for "how long were the customers '
+                . 'left without an update", and when writing anything about how an incident was '
+                . 'handled — the gaps between the customer-facing lines are usually the finding.',
+            schema: [
+                'type'       => 'object',
+                'properties' => [
+                    'incident_id' => [
+                        'type'        => 'integer',
+                        'description' => 'The incident id, from major_open_incidents.',
+                    ],
+                ],
+                'required'   => ['incident_id'],
+            ],
+            handler: [self::class, 'runTimeline'],
+            right: 'plugin_glpimajor_declare',
+            source: 'glpimajor',
+            pinned: false
+        );
+    }
+
+    /**
+     * @param array<string,mixed> $arguments
+     * @return array<string,mixed>
+     */
+    public static function runTimeline(array $arguments = [], mixed $context = null): array
+    {
+        $incidents_id = (int) ($arguments['incident_id'] ?? 0);
+
+        $incident = new Incident();
+        if ($incidents_id <= 0 || !$incident->getFromDB($incidents_id) || !$incident->can($incidents_id, READ)) {
+            return ['error' => sprintf('There is no major incident %d that you can see.', $incidents_id)];
+        }
+
+        $rows = [];
+        foreach (Pir::timeline($incidents_id) as $entry) {
+            $rows[] = array_filter([
+                'at'     => (string) $entry['at'],
+                'what'   => (string) $entry['label'],
+                'kind'   => (string) $entry['kind'],
+                'detail' => self::text($entry['detail'] ?? ''),
+            ], static fn($v): bool => $v !== '');
+        }
+
+        return [
+            'incident' => [
+                'id'    => $incidents_id,
+                'title' => (string) $incident->fields['name'],
+                'state' => Incident::stateLabel((string) $incident->fields['state']),
+            ],
+            'timeline' => $rows,
+            'gaps'     => self::commsGaps($incidents_id),
+            'note'     => 'Oldest first. "Update to the customer" is the only kind the customer '
+                . 'ever saw — internal notes and state changes were invisible to them, however '
+                . 'busy the log looks.',
+        ];
+    }
+
+    /**
+     * The longest stretch the customer heard nothing.
+     *
+     * Computed rather than left to be counted off a list of timestamps: it is
+     * the single number a review turns on, and a model asked to work it out
+     * from twenty rows will occasionally take the gap between two internal
+     * notes for a gap in the comms.
+     *
+     * @return array<string,mixed>|null
+     */
+    private static function commsGaps(int $incidents_id): ?array
+    {
+        $stamps = [];
+
+        foreach (Update::forIncident($incidents_id, Update::CUSTOMER) as $row) {
+            $at = strtotime((string) $row['date_creation']);
+            if ($at > 0) {
+                $stamps[] = $at;
+            }
+        }
+
+        if ($stamps === []) {
+            return ['longest_silence' => 'the whole incident — nothing was ever published'];
+        }
+
+        sort($stamps);
+
+        $incident = new Incident();
+        if ($incident->getFromDB($incidents_id)) {
+            $declared = strtotime((string) ($incident->fields['date_declared'] ?? ''));
+            if ($declared > 0) {
+                array_unshift($stamps, $declared);
+            }
+
+            $resolved = strtotime((string) ($incident->fields['date_resolved'] ?? ''));
+            $stamps[] = $resolved > 0 ? $resolved : time();
+        }
+
+        $worst = 0;
+        for ($i = 1, $n = count($stamps); $i < $n; $i++) {
+            $worst = max($worst, $stamps[$i] - $stamps[$i - 1]);
+        }
+
+        return [
+            'customer_updates' => count($stamps) - 2 > 0 ? count($stamps) - 2 : 0,
+            'longest_silence'  => sprintf('%d minutes', (int) round($worst / 60)),
+        ];
+    }
+
+    // -------------------------------------------------------------- actions
+
+    private static function actions(): Tool
+    {
+        return new Tool(
+            name: 'major_actions',
+            description: 'What was agreed after a major incident and whether anybody did it: the '
+                . 'post-incident review\'s actions, their owners, due dates and status, with the '
+                . 'review\'s own findings — what happened, the impact, the root cause. Use it '
+                . 'when asked what came out of an incident, whether the follow-up work was ever '
+                . 'done, and before promising a customer that something has been put right.',
+            schema: [
+                'type'       => 'object',
+                'properties' => [
+                    'incident_id' => [
+                        'type'        => 'integer',
+                        'description' => 'The incident id.',
+                    ],
+                    'open_only'   => [
+                        'type'        => 'string',
+                        'enum'        => ['yes', 'no'],
+                        'description' => 'Only actions nobody has closed. Defaults to no.',
+                    ],
+                ],
+                'required'   => ['incident_id'],
+            ],
+            handler: [self::class, 'runActions'],
+            right: 'plugin_glpimajor_declare',
+            source: 'glpimajor',
+            pinned: false
+        );
+    }
+
+    /**
+     * @param array<string,mixed> $arguments
+     * @return array<string,mixed>
+     */
+    public static function runActions(array $arguments = [], mixed $context = null): array
+    {
+        $incidents_id = (int) ($arguments['incident_id'] ?? 0);
+
+        $incident = new Incident();
+        if ($incidents_id <= 0 || !$incident->getFromDB($incidents_id) || !$incident->can($incidents_id, READ)) {
+            return ['error' => sprintf('There is no major incident %d that you can see.', $incidents_id)];
+        }
+
+        // `$create = false`, always. See the class docblock: the default
+        // creates the review row, and a question must not leave a draft
+        // behind.
+        $pir = Pir::forIncident($incidents_id, (int) $incident->fields['entities_id'], false);
+
+        if ($pir === null) {
+            return [
+                'incident' => ['id' => $incidents_id, 'title' => (string) $incident->fields['name']],
+                'note'     => 'No post-incident review has been started for this incident, so '
+                    . 'nothing has been agreed. That is itself the answer to "what came out of '
+                    . 'it".',
+            ];
+        }
+
+        $open_only = strtolower((string) ($arguments['open_only'] ?? 'no')) === 'yes';
+        $actions   = [];
+        $overdue   = 0;
+        $today     = date('Y-m-d');
+
+        foreach (PirAction::forPir((int) $pir['id']) as $row) {
+            $status = (string) $row['status'];
+
+            if ($open_only && $status !== PirAction::OPEN) {
+                continue;
+            }
+
+            $due = (string) ($row['due_date'] ?? '');
+            $due = $due === '' || str_starts_with($due, '0000') ? null : substr($due, 0, 10);
+
+            if ($status === PirAction::OPEN && $due !== null && $due < $today) {
+                $overdue++;
+            }
+
+            $actions[] = array_filter([
+                'action'  => self::text($row['content'] ?? ''),
+                'owner'   => self::userName((int) ($row['users_id_owner'] ?? 0)),
+                'due'     => $due,
+                'status'  => PirAction::statuses()[$status] ?? $status,
+                'overdue' => $status === PirAction::OPEN && $due !== null && $due < $today ?: null,
+                'raised_as_improvement' => (int) ($row['improve_candidates_id'] ?? 0) ?: null,
+            ], static fn($v): bool => $v !== null && $v !== '');
+        }
+
+        return array_filter([
+            'incident' => ['id' => $incidents_id, 'title' => (string) $incident->fields['name']],
+            'review'   => array_filter([
+                'status'        => (string) $pir['status'],
+                'completed_on'  => (string) ($pir['date_completed'] ?? '') ?: null,
+                'what_happened' => self::text($pir['what_happened'] ?? ''),
+                'impact'        => self::text($pir['impact'] ?? ''),
+                'root_cause'    => self::text($pir['root_cause'] ?? ''),
+                'problem'       => (int) ($pir['problems_id'] ?? 0) ?: null,
+            ], static fn($v): bool => $v !== null && $v !== ''),
+            'actions'  => $actions,
+            'note'     => $overdue > 0
+                ? sprintf(
+                    '%d agreed action(s) are open and past their due date. Say so — an incident '
+                    . 'whose actions never happened is one that will happen again.',
+                    $overdue
+                )
+                : ($actions === [] ? 'The review exists but nothing was agreed to do.' : null),
+        ], static fn($v): bool => $v !== null && $v !== []);
+    }
+
+    // ---------------------------------------------------------- maintenance
+
+    private static function maintenance(): Tool
+    {
+        return new Tool(
+            name: 'major_maintenance',
+            description: 'Planned maintenance the customer has already been told about: the '
+                . 'windows announced on their status page, when each runs and whether it is '
+                . 'under way right now. Check it before diagnosing anything that started at a '
+                . 'suspiciously round time, and before telling a customer that something is '
+                . 'unexpectedly down — announced work that a technician treats as an incident '
+                . 'is a wasted afternoon and an unnecessary apology.',
+            schema: [
+                'type'       => 'object',
+                'properties' => [
+                    'entity' => [
+                        'type'        => 'integer',
+                        'description' => 'The customer entity. Omit for the conversation\'s own.',
+                    ],
+                ],
+            ],
+            handler: [self::class, 'runMaintenance'],
+            right: 'plugin_glpimajor_declare',
+            source: 'glpimajor',
+            pinned: false
+        );
+    }
+
+    /**
+     * @param array<string,mixed> $arguments
+     * @return array<string,mixed>
+     */
+    public static function runMaintenance(array $arguments = [], mixed $context = null): array
+    {
+        $entity = array_key_exists('entity', $arguments)
+            ? (int) $arguments['entity']
+            : ($context instanceof \GlpiPlugin\Glpiai\ToolContext ? $context->entities_id : 0);
+
+        if (!Session::haveAccessToEntity($entity)) {
+            return ['error' => sprintf('Entity %d is not one you can see.', $entity)];
+        }
+
+        $now  = date('Y-m-d H:i:s');
+        $rows = [];
+
+        foreach (Maintenance::upcomingFor($entity) as $row) {
+            // Every row again through the session, for the reason the incident
+            // sweep does it: upcomingFor() resolves the tree from the entity
+            // asked about, and the argument must never widen what may be seen.
+            if (!Session::haveAccessToEntity((int) $row['entities_id'], (bool) $row['is_recursive'])) {
+                continue;
+            }
+
+            $start = (string) $row['date_start'];
+            $end   = (string) $row['date_end'];
+
+            $rows[] = array_filter([
+                'title'    => (string) $row['name'],
+                'from'     => $start,
+                'to'       => $end,
+                'state'    => (string) $row['state'],
+                'running_now' => $start <= $now && $end >= $now ?: null,
+                'entity'   => (string) \Dropdown::getDropdownName('glpi_entities', (int) $row['entities_id']),
+                'detail'   => self::text($row['content'] ?? ''),
+            ], static fn($v): bool => $v !== null && $v !== '');
+        }
+
+        $running = array_filter($rows, static fn(array $r): bool => !empty($r['running_now']));
+
+        return [
+            'maintenance' => $rows,
+            'note'        => $running !== []
+                ? 'Maintenance is running right now. Anything reported as broken in this window '
+                    . 'is announced work until proven otherwise — check before declaring an '
+                    . 'incident.'
+                : ($rows === []
+                    ? 'Nothing is announced for this customer. Work nobody announced can still '
+                        . 'be under way — this is the customer-facing calendar, not the change '
+                        . 'schedule. Use change_calendar for that.'
+                    : 'Announced and upcoming, soonest first.'),
+        ];
     }
 
     // --------------------------------------------------------------- shared
