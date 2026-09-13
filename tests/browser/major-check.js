@@ -372,11 +372,17 @@ const feedKinds = (pg) =>
   await page.goto(`${BASE}/front/ticket.form.php?id=${T_MI}`, { waitUntil: 'networkidle' });
 
   check('the declare control is on the ticket', await page.locator('.glpimajor-declare').count() === 1);
-  check('and it is a summary, not a page of its own',
-    await page.locator('.glpimajor-declare details > summary').count() === 1);
+  // A disclosure inside the fields panel, not a page of its own. It was a bare
+  // <details> and is now core's accordion furniture — Banner::declareControl()
+  // explains why — so this asserts the accordion header and opens that.
+  check('and it is a disclosure in the panel, not a page of its own',
+    await page.locator('.glpimajor-declare .accordion-header .accordion-button').count() === 1);
 
-  await page.click('.glpimajor-declare details > summary');
-  await page.waitForTimeout(300);
+  await page.click('.glpimajor-declare .accordion-button');
+  // Bootstrap animates the collapse; wait for it to actually be open rather
+  // than for a fixed interval, or the first field read races the transition.
+  await page.waitForSelector('.glpimajor-declare .collapse.show', { timeout: 5000 });
+  await page.waitForTimeout(200);
 
   const prefilled = await page.inputValue('.glpimajor-declare input[name=name]');
   check('the customer-visible title is pre-filled from the ticket', prefilled.length > 0, prefilled);
@@ -1102,7 +1108,8 @@ const feedKinds = (pg) =>
   await dp.goto(`${BASE}/front/ticket.form.php?id=${darkFixture.ticket}`, { waitUntil: 'networkidle' });
   await dp.waitForTimeout(600);
   check('the fixture ticket carries the duplicate offer', await dp.locator('.glpimajor-banner--offer').count() === 1);
-  await dp.click('.glpimajor-declare details > summary');
+  await dp.click('.glpimajor-declare .accordion-button');
+  await dp.waitForSelector('.glpimajor-declare .collapse.show', { timeout: 5000 });
   await dp.waitForTimeout(300);
   r = await auditSurface(dp, '.glpimajor-banner--offer', BANNER_MUTED);
   checkAudit('duplicate-offer banner', r, BANNER_MUTED);
