@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # SPDX-License-Identifier: GPL-3.0-or-later
 # Copyright (C) 2026 Bijstaan
-# Put the instance into the state major-check.js starts from: one customer
+# Put the instance into the state major-check.js starts from: one organisation
 # entity of our own, the people in it, and two tickets that read like a real
 # morning — one from the practice manager, one from a solicitor an hour later,
 # about the same dead file server.

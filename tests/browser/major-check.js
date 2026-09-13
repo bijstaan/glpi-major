@@ -11,7 +11,7 @@
 //   - the comms log keeps its audiences visibly apart
 //   - a second ticket that looks the same is *offered* an attach, and attaches
 //     on one click
-//   - the page a customer reads contains no GLPI vocabulary and no internal
+//   - the page a reader reads contains no GLPI vocabulary and no internal
 //     sentence, and a regenerated address 404s the old one immediately
 //   - resolution proposes a solution on the attached ticket and closes nothing
 //   - a completed review locks, and the lock says so
@@ -348,7 +348,7 @@ const feedKinds = (pg) =>
   const errs = [];
   page.on('pageerror', (e) => errs.push(e.message));
 
-  // Publishing to a customer asks first, and there is no unsend — so the
+  // Publishing asks first, and there is no unsend — so the
   // confirmation is part of the feature, not an obstacle to the test. Accepted
   // rather than auto-dismissed (Playwright's default), and remembered, because
   // "it asked" is itself worth asserting.
@@ -385,7 +385,7 @@ const feedKinds = (pg) =>
   await page.waitForTimeout(200);
 
   const prefilled = await page.inputValue('.glpimajor-declare input[name=name]');
-  check('the customer-visible title is pre-filled from the ticket', prefilled.length > 0, prefilled);
+  check('the public title is pre-filled from the ticket', prefilled.length > 0, prefilled);
   check('and the form says that is usually the wrong thing to publish',
     (await text(page, '.glpimajor-declare')).includes('the wrong thing to publish'));
 
@@ -406,7 +406,7 @@ const feedKinds = (pg) =>
 
   check('the cockpit is the first thing on the incident',
     await page.locator('.glpimajor-cockpit').count() === 1);
-  check('with the customer-visible title as the biggest thing on it',
+  check('with the public title as the biggest thing on it',
     (await text(page, '.glpimajor-cockpit-title')) === TITLE,
     await text(page, '.glpimajor-cockpit-title'));
   check('a state pill', (await text(page, '.glpimajor-cockpit .glpimajor-pill')) === 'Investigating');
@@ -421,11 +421,11 @@ const feedKinds = (pg) =>
 
   const chips = await text(page, '.glpimajor-cockpit-chips');
   check('the chips say when and by whom it was declared', /Declared\s/.test(chips), chips);
-  check('and that the customer has heard nothing yet — the number this plugin exists for',
-    chips.includes('First customer update') && chips.includes('none yet'), chips);
+  check('and that the public has heard nothing yet — the number this plugin exists for',
+    chips.includes('First public update') && chips.includes('none yet'), chips);
   check('said with the overdue emphasis',
     await page.evaluate(() => Array.from(document.querySelectorAll('.glpimajor-chip.is-late'))
-      .some((c) => c.textContent.includes('First customer update'))));
+      .some((c) => c.textContent.includes('First public update'))));
 
   check('the primary action is the natural next transition',
     (await text(page, '.glpimajor-cockpit [data-glpimajor-goto]')) === 'Mark identified');
@@ -478,9 +478,9 @@ const feedKinds = (pg) =>
   check('it shows the state', bannerText.includes('investigating'), bannerText);
   check('it names the commander', bannerText.includes('okafor'), bannerText);
   check('and separately the comms owner', bannerText.includes('raman'), bannerText);
-  check('it publishes the customer-visible title, not the ticket\'s',
+  check('it publishes the public title, not the ticket\'s',
     bannerText.includes(TITLE.toLowerCase()), bannerText);
-  check('and says so in as many words', bannerText.includes('is what the customer reads'), bannerText);
+  check('and says so in as many words', bannerText.includes('is what the reader reads'), bannerText);
   check('it says nothing has been promised yet', bannerText.includes('no next update promised'), bannerText);
   // 0.1.1: the declaring ticket is the outage's first affected ticket, so a
   // fresh declaration reads 1, never 0.
@@ -547,7 +547,7 @@ const feedKinds = (pg) =>
   check('an internal note goes out without a confirmation', asked.length === 0, asked.join(' | '));
 
   await post(CUSTOMER_1, 'customer');
-  check('but publishing to the customer asks first',
+  check('but publishing asks first',
     asked.length === 1 && /status page/i.test(asked[0]), asked.join(' | '));
 
   // The promise, one click.
@@ -577,15 +577,15 @@ const feedKinds = (pg) =>
       state: li.querySelector('.glpimajor-log-state')?.textContent.trim(),
       who: li.querySelector('.glpimajor-log-who')?.textContent.trim(),
       body: li.querySelector('.glpimajor-log-body')?.textContent.trim().slice(0, 60),
-      customer: li.classList.contains('is-customer'),
+      isPublic: li.classList.contains('is-public'),
     })));
 
   check('the log has all three entries', entries.length === 3, JSON.stringify(entries.map((e) => e.audience)));
   check('every entry says who it was for',
-    entries.every((e) => e.audience === 'Customer-visible' || e.audience === 'Internal only'),
+    entries.every((e) => e.audience === 'Public' || e.audience === 'Internal only'),
     JSON.stringify(entries.map((e) => e.audience)));
-  check('two of them are customer-visible', entries.filter((e) => e.customer).length === 2);
-  check('one of them is internal', entries.filter((e) => !e.customer).length === 1);
+  check('two of them are public', entries.filter((e) => e.isPublic).length === 2);
+  check('one of them is internal', entries.filter((e) => !e.isPublic).length === 1);
   check('and every entry carries the state we believed at the time',
     entries.every((e) => !!e.state) && entries.some((e) => e.state === 'Investigating')
       && entries.some((e) => e.state === 'Identified'),
@@ -620,7 +620,7 @@ const feedKinds = (pg) =>
     await page.locator('.glpimajor-banner--offer').count() === 1);
 
   const offer = await text(page, '.glpimajor-banner--offer');
-  check('the offer names the customer-visible title', offer.includes(TITLE), offer);
+  check('the offer names the public title', offer.includes(TITLE), offer);
   check('it says why it matched', /Matched on/.test(offer), offer);
   check('it says what attaching does and does not do',
     offer.includes('nothing else changes'), offer);
@@ -669,7 +669,7 @@ const feedKinds = (pg) =>
     !affectedRows[0].detach && affectedRows[1].detach, JSON.stringify(affectedRows));
 
   // ================================================== 5. the address
-  section('The settings page, and an address for the customer');
+  section('The settings page, and an address to hand out');
 
   await page.goto(`${BASE}/plugins/glpimajor/front/config.php`, { waitUntil: 'networkidle' });
 
@@ -682,7 +682,7 @@ const feedKinds = (pg) =>
   await page.waitForLoadState('networkidle');
 
   // Scoped to the target entity's own row: the pages table can hold other
-  // customers' rows (other fixtures mint their own), and "the first <code> on
+  // entities' rows (other fixtures mint their own), and "the first <code> on
   // the card" silently becomes somebody else's address the day one exists.
   const addressOf = async () => {
     const codes = await page.evaluate((ent) =>
@@ -718,7 +718,7 @@ const feedKinds = (pg) =>
   await fullPage(page, `${SHOTS}/major-07-settings.png`, { highlight: '#glpimajor-pages' });
 
   // ================================================== 5b. maintenance
-  section('A window the customer is warned about');
+  section('A window readers are warned about');
 
   await page.goto(`${BASE}/plugins/glpimajor/front/maintenance.form.php`, { waitUntil: 'networkidle' });
 
@@ -751,10 +751,10 @@ const feedKinds = (pg) =>
     `foreach ($DB->request(['FROM'=>'glpi_plugin_glpimajor_maintenances','WHERE'=>['entities_id'=>${ENTITY}],'ORDER'=>['id DESC'],'LIMIT'=>1]) as $r)`
     + `{ echo json_encode(['name'=>$r['name'],'state'=>$r['state'],'start'=>(string)$r['date_start'],'source'=>$r['source']]); }`
   );
-  check('the window is saved against the customer', win.length > 0, win);
+  check('the window is saved against the entity', win.length > 0, win);
   if (win.length > 0) {
     const w = JSON.parse(win);
-    check('with the title the customer will read', w.name === WINDOW, w.name);
+    check('with the title readers will see', w.name === WINDOW, w.name);
     check('scheduled, and dated', w.state === 'scheduled' && w.start.startsWith('2026-08-29'), win);
     // NULL, not '': the unique key on (source, external_key) is what makes a
     // pushed announcement idempotent, and two empty strings are equal — so
@@ -763,7 +763,7 @@ const feedKinds = (pg) =>
   }
 
   // ================================================== 6. the public page
-  section('The page a customer reads');
+  section('The page a reader reads');
 
   // A different browser context: no cookie, no session, nothing this instance
   // has ever seen. That is the only honest way to check a page that claims to
@@ -784,7 +784,7 @@ const feedKinds = (pg) =>
    * full of people refreshing during an outage should cost one read — and now
    * that no session is started, nothing defeats it any more. So a navigation to
    * a URL this context has already seen answers from the cache, which is right
-   * for a customer and useless for asserting that an address was retired.
+   * for a reader and useless for asserting that an address was retired.
    */
   const statusOf = async (t) => {
     const response = await stranger.request.get(`${BASE}/plugins/glpimajor/front/status.php/${t}`,
@@ -808,17 +808,17 @@ const feedKinds = (pg) =>
   const leaked = vocabulary.filter((w) => new RegExp(`\\b${w}\\b`).test(visible));
   check('it uses none of GLPI\'s vocabulary', leaked.length === 0, leaked.join(', '));
 
-  check('the customer updates are on it',
+  check('the public updates are on it',
     visible.includes('replacement part is on its way'), visible.slice(0, 200));
   check('the internal note is not', !visible.includes('fs01') && !visible.includes('dell dispatch'));
   check('nor is the internal ticket title', !visible.includes('s: drive'));
-  check('the customer-visible title is', visible.includes(TITLE.toLowerCase()));
+  check('the public title is', visible.includes(TITLE.toLowerCase()));
   check('the address is not printed on the page it addresses', !got.body.includes(token));
   check('the support contact is there', visible.includes('servicedesk@bijstaan.example'));
-  check('and the per-customer note', visible.includes('08:00'));
+  check('and the per-entity note', visible.includes('08:00'));
   check('the planned maintenance is announced on it',
     visible.includes('overnight replacement of the office file server'), visible.slice(0, 300));
-  check('with what the customer should expect',
+  check('with what readers should expect',
     visible.includes('back before the office opens'));
 
   // A nonsense address is a bare 404 — not a redirect, not a differently
@@ -847,7 +847,7 @@ const feedKinds = (pg) =>
   await fullPage(outside, `${SHOTS}/major-05-status-page.png`);
 
   // ================================================== 6b. down the tree
-  section('An outage that covers the customer\'s other offices');
+  section('An outage that covers the organisation\'s other offices');
 
   // Before anything is ticked, the Manchester office's ticket is in a different
   // entity from the incident and must be offered nothing at all. This is the
@@ -860,7 +860,7 @@ const feedKinds = (pg) =>
   await page.goto(`${BASE}/plugins/glpimajor/front/incident.form.php?id=${INCIDENT}`, { waitUntil: 'networkidle' });
   await openEditDetails(page);
 
-  check('the incident offers a coverage control, because this customer has offices',
+  check('the incident offers a coverage control, because this entity has offices',
     await page.locator('#main-form input[name=is_recursive][type=checkbox]').count() === 1);
   check('and it says which way coverage travels',
     (await text(page)).includes('never travels sideways or upwards'),
@@ -883,7 +883,7 @@ const feedKinds = (pg) =>
   check('the sub-entity\'s ticket is now offered the incident declared above it',
     await page.locator('.glpimajor-banner--offer').count() === 1);
   const branchOffer = await text(page, '.glpimajor-banner--offer');
-  check('naming the customer-visible title', branchOffer.includes(TITLE), branchOffer);
+  check('naming the public title', branchOffer.includes(TITLE), branchOffer);
 
   await page.click('[data-glpimajor-action=attach]');
   await until(async () => (await page.locator('.glpimajor-banner--info').count()) === 1);
@@ -930,7 +930,7 @@ const feedKinds = (pg) =>
   check('the office\'s page answers', branchPage.status === 200, `HTTP ${branchPage.status}`);
   check('and carries the incident declared at the firm above it',
     branchText.includes(TITLE.toLowerCase()), branchText.slice(0, 240));
-  check('with the updates the customer was given',
+  check('with the updates the public was given',
     branchText.includes('replacement part is on its way'), branchText.slice(0, 240));
   check('and still none of the internal note',
     !branchText.includes('fs01') && !branchText.includes('dell dispatch'));
@@ -976,7 +976,7 @@ const feedKinds = (pg) =>
   const portalText = await text(solicitor, '.glpimajor-portal');
   const portalSaid = portalText.toLowerCase();
 
-  check('it names the customer-visible title', portalText.includes(TITLE), portalText);
+  check('it names the public title', portalText.includes(TITLE), portalText);
   check('and the state, in the status page\'s words rather than GLPI\'s',
     portalSaid.includes('identified'), portalText);
   check('it does not name the internal ticket', !portalSaid.includes('s: drive'), portalText);
@@ -1286,7 +1286,7 @@ const feedKinds = (pg) =>
     (await text(page, '[data-glpimajor-post-error]')).includes('Nothing to post'),
     await text(page, '[data-glpimajor-post-error]'));
 
-  // Customer-visible with nothing to say is refused even when something else
+  // Public with nothing to say is refused even when something else
   // would change: the audience is a publication, and there is nothing to
   // publish. The promise it rode in with is not made either — validation
   // comes before any mutation.
@@ -1296,7 +1296,7 @@ const feedKinds = (pg) =>
   await page.click('[data-glpimajor-action=post]');
   await until(async () => (await text(page, '[data-glpimajor-post-error]')).includes('something to say'));
 
-  check('a customer-visible post with no content is refused inline',
+  check('a public post with no content is refused inline',
     (await text(page, '[data-glpimajor-post-error]')).includes('something to say'),
     await text(page, '[data-glpimajor-post-error]'));
   check('still with no reload', await page.evaluate(() => window.__warroomStillHere === true));
@@ -1362,7 +1362,7 @@ const feedKinds = (pg) =>
   const dupText = await text(page);
   check('the attached ticket shows the proposed solution',
     dupText.includes('This was part of a wider issue'), dupText.slice(0, 300));
-  check('and it speaks the customer-visible title', dupText.includes(TITLE));
+  check('and it speaks the public title', dupText.includes(TITLE));
 
   // ============================================ 7b. the portal, afterwards
   section('And when it is over, the portal goes quiet');
@@ -1446,7 +1446,7 @@ const feedKinds = (pg) =>
 
   const timeline = await contents(page, '.glpimajor-timeline');
   check('the timeline is assembled rather than typed',
-    timeline.includes('Declared a major incident') && timeline.includes('Update to the customer'),
+    timeline.includes('Declared a major incident') && timeline.includes('Public update'),
     timeline.slice(0, 200));
 
   // The seam to the improvement register, if that plugin is here.
@@ -1474,7 +1474,7 @@ const feedKinds = (pg) =>
       const c = JSON.parse(candidate);
       check('with the action as its title', c.title.includes('degraded array'), c.title);
       check('keyed on the action so a re-push is idempotent', /^piraction:\d+$/.test(c.origin), c.origin);
-      check('in the customer\'s entity', c.entity === ENTITY, String(c.entity));
+      check('in the entity', c.entity === ENTITY, String(c.entity));
       check('carrying the incident it came from', c.detail.includes(TITLE), c.detail);
     }
 
@@ -1554,7 +1554,7 @@ const feedKinds = (pg) =>
     if (drafted !== '') {
       check('the draft landed in the textarea — never on the page', drafted.length > 50,
         drafted.slice(0, 200));
-      check('and it is customer prose: no hostname, no vendor, no markup',
+      check('and it is publishable prose: no hostname, no vendor, no markup',
         !/DC01|Veeam|^#|\n#|[*_]{2}/.test(drafted), drafted.slice(0, 200));
       PM_TEXT = drafted;
       aiDrafted = true;
@@ -1600,7 +1600,7 @@ const feedKinds = (pg) =>
 
   await fullPage(page, `${SHOTS}/major-15-postmortem.png`, { highlight: '[data-glpimajor-postmortem]' });
 
-  // The page the customer reads: the post-mortem leads the incident's entry
+  // The page the reader reads: the post-mortem leads the incident's entry
   // — after the title, before the update timeline — per the seam contract.
   const pmPageResponse = await page.request.get(
     `${BASE}/plugins/glpimajor/front/status.php/${token}`,

@@ -322,7 +322,7 @@ final class Affected
     /**
      * What the requester of an attached ticket reads.
      *
-     * The customer-visible title, not the internal one: this text lands in
+     * The public title, not the internal one: this text lands in
      * somebody's inbox, and the whole reason the incident has a second title is
      * that the first one is not for them.
      */

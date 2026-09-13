@@ -20,13 +20,13 @@ use Ticket;
  * Promotion never rewrites the ticket — not its status, not its priority, not
  * its category. GLPI's own machinery keeps owning all of that; this record owns
  * the questions GLPI has no field for: who is commanding, who is talking to the
- * customer, what we are prepared to say in public, and when we said we would
+ * the people affected, what we are prepared to say in public, and when we said we would
  * say the next thing.
  *
- * `name` is the *customer-visible* title, not the ticket's. That is the point
+ * `name` is the *public* title, not the ticket's. That is the point
  * of the column: internal titles carry hostnames, vendor names and hypotheses
  * ("EXCH01 mailbox DB corrupt, restoring from Veeam"), and the status page is
- * read by the customer. Defaulting it to the ticket title makes the safe path
+ * read by outsiders. Defaulting it to the ticket title makes the safe path
  * the lazy path; having the column at all makes the safe path possible.
  */
 class Incident extends CommonDBTM
@@ -66,8 +66,8 @@ class Incident extends CommonDBTM
      * The first version of this plugin returned false here, on the argument
      * that a recursive incident would land on a sibling tenant's status page.
      * That argument was right about siblings and wrong about the shape of a
-     * customer: "Law Company" with offices in Manchester and London is one
-     * customer with three entities, and an outage that closes both offices is
+     * organisation: "Law Company" with offices in Manchester and London is one
+     * organisation with three entities, and an outage that closes both offices is
      * one outage. Refusing to say so made the commander declare it three times
      * and keep three sets of updates in step by hand.
      *
@@ -190,8 +190,8 @@ class Incident extends CommonDBTM
             'tickets_id'         => $tickets_id,
             // Only ever what the declaring form asked for. It is offered at all
             // only when the entity has sub-entities, and its default comes from
-            // a setting rather than from this code, so an MSP whose customers
-            // are all single-site never sees the question.
+            // a setting rather than from this code, so an instance whose
+            // entities are all single-site never sees the question.
             'is_recursive'       => !empty($input['is_recursive']) ? 1 : 0,
             'state'              => self::INVESTIGATING,
             'users_id_commander' => (int) ($input['users_id_commander'] ?? $me),
@@ -480,7 +480,7 @@ class Incident extends CommonDBTM
         return (bool) $ok;
     }
 
-    /** The customer-visible title. Editing it is recorded; it is a public act. */
+    /** The public title. Editing it is recorded; it is a public act. */
     public function retitle(string $title): bool
     {
         $title = trim($title);
@@ -663,7 +663,7 @@ class Incident extends CommonDBTM
             'id'            => '1',
             'table'         => self::getTable(),
             'field'         => 'name',
-            'name'          => __('Customer-visible title', 'glpimajor'),
+            'name'          => __('Public title', 'glpimajor'),
             'datatype'      => 'itemlink',
             'massiveaction' => false,
         ];
@@ -684,7 +684,7 @@ class Incident extends CommonDBTM
         // GLPI's engine cannot express for this shape — the incident points at
         // the ticket, not the other way round — and getting it wrong makes the
         // whole list unrenderable rather than making one column empty. The
-        // number is enough to find it, and the incident's own customer-visible
+        // number is enough to find it, and the incident's own public
         // title is the more useful thing to read in a list anyway.
         $options[] = [
             'id'            => '3',
@@ -834,7 +834,7 @@ class Incident extends CommonDBTM
         $e   = static fn($v): string => htmlspecialchars((string) $v, ENT_QUOTES, 'UTF-8');
         $row = static fn(): string => "<tr class='tab_bg_1'>";
 
-        echo $row() . '<td>' . __s('Customer-visible title', 'glpimajor')
+        echo $row() . '<td>' . __s('Public title', 'glpimajor')
            . " <span class='text-red'>*</span></td><td colspan='3'>";
         echo Html::input('name', [
             'value'    => $this->fields['name'] ?? '',
@@ -842,7 +842,7 @@ class Incident extends CommonDBTM
             'required' => 'required',
         ]);
         echo "<div class='form-text'>"
-           . __s('This is what the customer reads on the status page. It defaults to the ticket '
+           . __s('This is what the reader reads on the status page. It defaults to the ticket '
                . 'title, which is usually the wrong thing to publish — internal titles carry '
                . 'hostnames and hypotheses.', 'glpimajor')
            . '</div></td></tr>';
@@ -867,7 +867,7 @@ class Incident extends CommonDBTM
         ]);
         echo '</td></tr>';
 
-        // Only where it can mean anything. An MSP whose customers are all
+        // Only where it can mean anything. An instance whose entities are all
         // single-site never sees the question, and a leaf entity showing a
         // "covers sub-entities" tick box that covers nothing is a control that
         // teaches people to ignore controls.
@@ -886,10 +886,10 @@ class Incident extends CommonDBTM
                . __s('Also covers sub-entities', 'glpimajor') . '</span></label>';
             echo "<div class='form-text'>"
                . sprintf(
-                   __s('This customer has %d sub-entities. Ticked, the incident appears on their '
+                   __s('This entity has %d sub-entities. Ticked, the incident appears on their '
                      . 'status pages as well as this one, their tickets are offered the attach, '
                      . 'and every published page under here is rewritten when you post a '
-                     . 'customer update. It never travels sideways or upwards.', 'glpimajor'),
+                     . 'public update. It never travels sideways or upwards.', 'glpimajor'),
                    count($children)
                )
                . '</div></td></tr>';
@@ -913,7 +913,7 @@ class Incident extends CommonDBTM
             'entity' => (int) ($this->fields['entities_id'] ?? 0),
         ]);
         echo "<div class='form-text'>"
-           . __s('Owns telling the customer. Deliberately not the same person — whoever is on the '
+           . __s('Owns telling everyone outside. Deliberately not the same person — whoever is on the '
                . 'console is the worst-placed person to also be writing updates.', 'glpimajor')
            . '</div></td></tr>';
 
@@ -969,7 +969,7 @@ class Incident extends CommonDBTM
             $input['name'] = trim((string) $input['name']);
             if ($input['name'] === '') {
                 \Session::addMessageAfterRedirect(
-                    __s('A major incident needs a customer-visible title.', 'glpimajor'),
+                    __s('A major incident needs a public title.', 'glpimajor'),
                     false,
                     ERROR
                 );
@@ -983,11 +983,11 @@ class Incident extends CommonDBTM
         }
 
         // Never taken from the form, in either direction. The entity decides
-        // which customer's status page a declaration lands on, and the
+        // which entity's status page a declaration lands on, and the
         // denormalised count is owned by Affected::recount().
         unset($input['entities_id'], $input['affected_count']);
 
-        // Anything but exactly 1 is 0. This column decides how many customers'
+        // Anything but exactly 1 is 0. This column decides how many entities'
         // pages a sentence lands on, so it is not a field to let a truthy
         // string through.
         if (array_key_exists('is_recursive', $input)) {

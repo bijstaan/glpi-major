@@ -9,11 +9,11 @@ namespace GlpiPlugin\Glpimajor;
 /**
  * The comms log: what we said, to whom, and what we believed at the time.
  *
- * Deliberately not the ticket timeline. A customer update has an audience, it
+ * Deliberately not the ticket timeline. A public update has an audience, it
  * is versioned against the state we believed when we wrote it, and it is the
  * source for a published artefact — a followup is none of those. Putting these
  * in the timeline would also mean "any joy with the switch?" sat in the same
- * list as the thing a customer is refreshing every ninety seconds.
+ * list as the thing a reader is refreshing every ninety seconds.
  *
  * `state_at_time` is not redundant with the incident's current state. Somebody
  * reading the history six months later needs to know what we believed *then*,
@@ -24,14 +24,20 @@ final class Update
     public const TABLE = 'glpi_plugin_glpimajor_updates';
 
     public const INTERNAL = 'internal';
-    public const CUSTOMER = 'customer';
+
+    /**
+     * The published audience. The stored value is still `customer`: it is what
+     * every existing row in `audience` holds, and renaming a constant is not
+     * worth a migration.
+     */
+    public const EXTERNAL = 'customer';
 
     /** @return array<string,string> */
     public static function audiences(): array
     {
         return [
             self::INTERNAL => __('Internal only', 'glpimajor'),
-            self::CUSTOMER => __('Customer-visible', 'glpimajor'),
+            self::EXTERNAL => __('Public', 'glpimajor'),
         ];
     }
 
@@ -56,7 +62,7 @@ final class Update
             return false;
         }
 
-        $audience = $audience === self::CUSTOMER ? self::CUSTOMER : self::INTERNAL;
+        $audience = $audience === self::EXTERNAL ? self::EXTERNAL : self::INTERNAL;
 
         // "Heeded" means the author changed what they were going to say after
         // reading the findings. It is the only observable that distinguishes a
@@ -107,7 +113,7 @@ final class Update
             );
         }
 
-        if ($audience === self::CUSTOMER) {
+        if ($audience === self::EXTERNAL) {
             Notifications::raise('published', (int) $incident->getID());
             Publisher::onChange((int) $incident->fields['entities_id']);
         }
@@ -145,9 +151,9 @@ final class Update
         return $out;
     }
 
-    /** The most recent customer-visible update, for the incident list. */
+    /** The most recent public update, for the incident list. */
     public static function latestCustomer(int $incidents_id): ?array
     {
-        return self::forIncident($incidents_id, self::CUSTOMER)[0] ?? null;
+        return self::forIncident($incidents_id, self::EXTERNAL)[0] ?? null;
     }
 }

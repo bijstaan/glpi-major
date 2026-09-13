@@ -41,7 +41,7 @@ class NotificationTargetIncident extends NotificationTarget
         return [
             'declared'  => __('Major incident declared', 'glpimajor'),
             'resolved'  => __('Major incident resolved', 'glpimajor'),
-            'published' => __('Customer update published', 'glpimajor'),
+            'published' => __('Public update published', 'glpimajor'),
             'overdue'   => __('Promised update is overdue', 'glpimajor'),
         ];
     }
@@ -49,7 +49,7 @@ class NotificationTargetIncident extends NotificationTarget
     public function getEventsToSendImmediately(): array
     {
         // All of them. Every one of these is about something happening now; a
-        // digest of "your customer has been down for an hour" arriving tomorrow
+        // digest of "an entity has been down for an hour" arriving tomorrow
         // is not a notification, it is a report.
         return ['declared', 'resolved', 'published', 'overdue'];
     }
@@ -103,7 +103,7 @@ class NotificationTargetIncident extends NotificationTarget
         $incidents_id = (int) ($fields['id'] ?? 0);
 
         // The internal link, to the incident. Not the status page: a
-        // notification is internal, and putting the customer's public address
+        // notification is internal, and putting the entity's public address
         // into every mail is how it ends up forwarded outside the estate.
         $this->data['##incident.url##'] = $incidents_id > 0
             ? Url::absolute('front/incident.form.php?id=' . $incidents_id)
@@ -137,7 +137,7 @@ class NotificationTargetIncident extends NotificationTarget
     {
         $tags = [
             'incident.action'          => __('Event', 'glpimajor'),
-            'incident.title'           => __('Customer-visible title', 'glpimajor'),
+            'incident.title'           => __('Public title', 'glpimajor'),
             'incident.state'           => __('State', 'glpimajor'),
             'incident.declared'        => __('Declared', 'glpimajor'),
             'incident.resolved'        => __('Resolved', 'glpimajor'),
@@ -147,7 +147,7 @@ class NotificationTargetIncident extends NotificationTarget
             'incident.commander'       => __('Commander', 'glpimajor'),
             'incident.comms'           => __('Comms owner', 'glpimajor'),
             'incident.outcome'         => __('Outcome summary', 'glpimajor'),
-            'incident.latest_update'   => __('Latest customer update', 'glpimajor'),
+            'incident.latest_update'   => __('Latest public update', 'glpimajor'),
             'incident.ticket'          => __('Ticket number', 'glpimajor'),
             'incident.url'             => __('URL'),
         ];

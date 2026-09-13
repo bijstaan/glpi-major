@@ -7,13 +7,13 @@
 namespace GlpiPlugin\Glpimajor;
 
 /**
- * The public post-mortem: the account the customer reads when it is over.
+ * The public post-mortem: the account the reader reads when it is over.
  *
  * Deliberately a separate thing from the PIR. The post-incident review is the
  * house being honest with itself — root causes, internal hostnames, what we
  * got wrong — and it must stay blunt to be worth writing. The post-mortem is
  * the same story told across the counter: what happened, what it meant for
- * the customer, what we did, what we are changing. One document cannot be
+ * the people affected, what we did, what we are changing. One document cannot be
  * both, because the moment the internal one might be published, people stop
  * writing the truth in it.
  *
@@ -21,7 +21,7 @@ namespace GlpiPlugin\Glpimajor;
  * moment the incident exists — half of the story is best written while it is
  * happening — but **publishable only once the incident is resolved**. A
  * "post-mortem" on an outage that is still going is a contradiction the
- * customer notices immediately: it declares the incident over in the very
+ * reader notices immediately: it declares the incident over in the very
  * paragraph the live timeline above it says otherwise. Retract works at any
  * time; taking something off the page must never have a precondition.
  *
@@ -143,7 +143,7 @@ final class Postmortem
             );
 
             // A published post-mortem whose text just changed is already on
-            // the customer's page in its old wording; a draft is nowhere.
+            // the entity's page in its old wording; a draft is nowhere.
             // Only the former needs the page rewritten — but that path goes
             // through publish(), which refreshes the stamp. A save on a
             // published row is possible only through code, not the UI, so no
@@ -170,7 +170,7 @@ final class Postmortem
 
         if ((string) $incident->fields['state'] !== Incident::RESOLVED) {
             return __('A post-mortem is published once the incident is resolved. Until then it '
-                . 'would tell the customer the outage is over while the timeline above it says '
+                . 'would tell readers the outage is over while the timeline above it says '
                 . 'otherwise.', 'glpimajor');
         }
 
@@ -268,12 +268,12 @@ final class Postmortem
     }
 
     /**
-     * Draft a customer-facing post-mortem from the incident's own record.
+     * Draft a public post-mortem from the incident's own record.
      *
      * The draft lands in the textarea, never on the page: the model proposes,
      * a human edits and publishes. That is the house charter, and it is also
      * simply the failure mode: a generative model writing directly to a
-     * customer about an outage it never saw is the worst tool in the worst
+     * anyone about an outage they never saw is the worst tool in the worst
      * place. Reading the record and producing a first draft for a person to
      * correct is where it earns its keep.
      *
@@ -295,7 +295,7 @@ final class Postmortem
             $prompt = $prompt_class::make(self::material($incident), self::instruction())
                 // The quality tier: this is exactly the workload the split
                 // exists for — low volume, and the output goes, after a human
-                // pass, in front of a customer.
+                // pass, in public.
                 ->withTier($prompt_class::TIER_QUALITY)
                 // The draft itself is ~350 tokens, but reasoning models
                 // (Gemini's flash line among them) spend the same output
@@ -346,7 +346,7 @@ final class Postmortem
         $f            = $incident->fields;
 
         $lines   = [];
-        $lines[] = 'Customer-visible incident title: ' . (string) $f['name'];
+        $lines[] = 'Public incident title: ' . (string) $f['name'];
         $lines[] = 'Declared: ' . (string) ($f['date_declared'] ?? '');
         if ((string) ($f['date_resolved'] ?? '') !== '') {
             $lines[] = 'Resolved: ' . (string) $f['date_resolved'];
@@ -377,7 +377,7 @@ final class Postmortem
         if ($updates !== []) {
             $lines[] = '';
             $lines[] = 'Update log (oldest first; "internal" entries were never shown to the '
-                . 'customer and their internal detail must not surface in your draft):';
+                . 'public and their internal detail must not surface in your draft):';
             foreach (array_slice($updates, -40) as $update) {
                 $lines[] = '- [' . (string) $update['audience'] . '] '
                     . (string) $update['date_creation'] . ' (state at the time: '
@@ -411,10 +411,10 @@ final class Postmortem
         // the status page's renderer exactly — plain prose, blank lines as
         // paragraph breaks, no markup — because the page escapes everything
         // and a draft full of headings would publish as literal hash signs.
-        return "You are drafting a public post-mortem for an IT service provider's customer-facing "
-             . "status page, from the internal record of a resolved incident. The reader is the "
-             . "customer: non-technical, and outside the provider's organisation.\n\n"
-             . "Cover, in order: what happened; what it meant for the customer (who could not do "
+        return "You are drafting a public post-mortem for an IT team's public "
+             . "status page, from the internal record of a resolved incident. The reader is "
+             . "non-technical and outside the team that fixed it.\n\n"
+             . "Cover, in order: what happened; what it meant for the people affected (who could not do "
              . "what, roughly for how long); what we did to restore service; and what we are "
              . "changing so it is less likely to happen again. Write 3 to 5 short paragraphs, "
              . "under 250 words in total.\n\n"

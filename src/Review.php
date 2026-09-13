@@ -9,11 +9,11 @@ namespace GlpiPlugin\Glpimajor;
 use Plugin;
 
 /**
- * The optional second pair of eyes on a customer update.
+ * The optional second pair of eyes on a public update.
  *
  * The model **reviews**; it never writes. That is not a limitation to be lifted
  * later — an outage is the single worst place in this suite to put a generative
- * model, because the failure mode is a confident sentence sent to a customer
+ * model, because the failure mode is a confident sentence published
  * about a system it has never seen. What it is good at is the thing a person
  * writing under pressure at 03:00 is worst at: noticing that they used the
  * word "failover", named a vendor, or promised nothing at all.
@@ -155,7 +155,7 @@ final class Review
         // Written at the model rather than about it: it is being asked to be a
         // careful colleague reading over somebody's shoulder, not an editor.
         return "You are reviewing a short status update that an IT service provider is about to "
-             . "publish to a customer during an outage. You do not rewrite it and you do not "
+             . "publish during an outage. You do not rewrite it and you do not "
              . "suggest replacement wording.\n\n"
              . "Report only three things:\n"
              . "1. jargon — words or phrases a non-technical reader would not understand, quoted "

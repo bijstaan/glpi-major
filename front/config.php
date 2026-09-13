@@ -153,7 +153,7 @@ if (!empty($_POST['_glpimajor_section'])) {
                 Snippet::update(
                     $id,
                     (string) ($_POST['snippet_name'] ?? ''),
-                    (string) ($_POST['snippet_audience'] ?? Update::CUSTOMER),
+                    (string) ($_POST['snippet_audience'] ?? Update::EXTERNAL),
                     (string) ($_POST['snippet_content'] ?? ''),
                     $recursive
                 );
@@ -162,7 +162,7 @@ if (!empty($_POST['_glpimajor_section'])) {
                 $created = Snippet::add(
                     (int) ($_POST['snippet_entity'] ?? 0),
                     (string) ($_POST['snippet_name'] ?? ''),
-                    (string) ($_POST['snippet_audience'] ?? Update::CUSTOMER),
+                    (string) ($_POST['snippet_audience'] ?? Update::EXTERNAL),
                     (string) ($_POST['snippet_content'] ?? ''),
                     $recursive
                 );
@@ -275,7 +275,7 @@ if (!$can_edit) {
 // ==================================================================== status
 //
 // Status first. This plugin can say whether it is actually working — whether
-// anything is open, whether each customer's page is live and fresh, and whether
+// anything is open, whether each entity's page is live and fresh, and whether
 // the reminder cron has run — so that leads the page.
 
 $open  = Incident::allOpen();
@@ -323,9 +323,9 @@ if (!$publishing) {
            . 'reviews all work; only publishing is off.', 'glpimajor')
        . '</div>';
 } elseif ($live === 0) {
-    echo '<strong>' . __s('Publishing is on, and no customer has an address yet.', 'glpimajor') . '</strong>';
+    echo '<strong>' . __s('Publishing is on, and no entity has an address yet.', 'glpimajor') . '</strong>';
     echo "<div class='small'>"
-       . __s('Generate one below for each entity whose customers should be able to read a status '
+       . __s('Generate one below for each entity whose people should be able to read a status '
            . 'page. Until then nothing is published for anybody.', 'glpimajor')
        . '</div>';
 } elseif ($errored > 0) {
@@ -334,13 +334,13 @@ if (!$publishing) {
         $errored
     ) . '</strong>';
     echo "<div class='small'>"
-       . __s('The reason is shown against each page below. A customer is reading whatever was '
+       . __s('The reason is shown against each page below. A reader is reading whatever was '
            . 'published last.', 'glpimajor')
        . '</div>';
 } elseif ($stale > 0) {
     echo '<strong>' . sprintf(__s('%d status page(s) look stale.', 'glpimajor'), $stale) . '</strong>';
     echo "<div class='small'>"
-       . __s('Pages regenerate on every customer-visible change, with a cron as a backstop. If '
+       . __s('Pages regenerate on every public change, with a cron as a backstop. If '
            . 'these stay stale, check that GLPI\'s automatic actions are running.', 'glpimajor')
        . '</div>';
 } else {
@@ -413,7 +413,7 @@ echo "<div id='glpimajor-pages' class='card mb-3'><div class='card-header'><h3 c
 
 echo '<p class="text-muted">'
    . __s('Each entity gets one page at an unguessable address. The page is a static file '
-       . 'regenerated whenever something customer-visible changes; the public endpoint serves the '
+       . 'regenerated whenever something public changes; the public endpoint serves the '
        . 'file and never queries GLPI. Regenerating an address retires the old one immediately.',
        'glpimajor')
    . '</p>';
@@ -478,7 +478,7 @@ if ($pages === []) {
         }
         echo '</td></tr>';
 
-        // The two things about a page that are per-customer rather than
+        // The two things about a page that are per-entity rather than
         // per-instance. They have their own form because they are a property of
         // this row, and folding them into the settings card would mean one Save
         // button writing both instance settings and one entity's page.
@@ -489,7 +489,7 @@ if ($pages === []) {
         if ($can_edit) {
             echo "<tr class='glpimajor-page-details'><td colspan='4'>";
             echo "<details><summary class='text-muted small'>"
-               . __s('Page title and support note for this customer', 'glpimajor')
+               . __s('Page title and support note for this entity', 'glpimajor')
                . '</summary>';
             echo "<form method='post' class='row g-2 align-items-end mt-1'>";
             echo Html::hidden('_glpi_csrf_token', ['value' => Session::getNewCSRFToken()]);
@@ -501,7 +501,7 @@ if ($pages === []) {
             echo "<input type='text' class='form-control form-control-sm' name='page_title' value='"
                . $e($row['page_title'] ?? '') . "' placeholder='" . $e(Brand::title()) . "'>";
             echo "<div class='form-text'>"
-               . __s('What this customer sees at the top of their page. Empty falls back to the '
+               . __s('What readers see at the top of this entity\'s page. Empty falls back to the '
                    . 'instance-wide title.', 'glpimajor')
                . '</div></div>';
 
@@ -575,7 +575,7 @@ echo "<input type='text' class='form-control' name='status_timezone' value='"
    . $e($cfg['status_timezone']) . "' placeholder='" . $e(date_default_timezone_get()) . "'>";
 echo "<div class='form-text'>"
    . __s('Every time on the page is drawn in this zone, with the offset printed next to the '
-       . '"last updated" stamp. A customer in another country cannot act on a bare "14:20".',
+       . '"last updated" stamp. A reader in another country cannot act on a bare "14:20".',
        'glpimajor')
    . '</div></div>';
 
@@ -645,9 +645,9 @@ echo "<span class='form-check-label'>"
 echo "<div class='form-text mb-3'>"
    . __s('The checkbox is offered only when the entity being declared in has sub-entities. '
        . 'A covered incident appears on every sub-entity\'s status page, and their tickets are '
-       . 'offered the attach; it never travels sideways to another customer or upwards to a '
+       . 'offered the attach; it never travels sideways to another entity or upwards to a '
        . 'parent. Left off by default: ticking a box costs a click, and taking an outage back '
-       . 'off three customers\' pages costs an explanation.', 'glpimajor')
+       . 'off three entities\' pages costs an explanation.', 'glpimajor')
    . '</div>';
 
 echo "<hr class='my-3'>";
@@ -667,7 +667,7 @@ echo "<span class='form-check-label'>"
    . __s('Show a banner on the portal home page during an incident', 'glpimajor')
    . '</span></label>';
 echo "<div class='form-text mb-3'>"
-   . __s('The customer-visible title and the state, and a link to their own status page. '
+   . __s('The public title and the state, and a link to their own status page. '
        . 'Nothing internal: no roles, no ticket, no internal notes. It also covers planned work '
        . 'that is under way or starting within the day.', 'glpimajor')
    . '</div>';
@@ -680,7 +680,7 @@ echo "<span class='form-check-label'>"
    . '</span></label>';
 echo "<div class='form-text'>"
    . __s('Shown whenever the requester\'s entity has a live address, whether anything is wrong '
-       . 'or not — so a customer who wants to check before ringing has somewhere to go.',
+       . 'or not — so a reader who wants to check before ringing has somewhere to go.',
        'glpimajor')
    . '</div>';
 
@@ -695,7 +695,7 @@ echo '<p class="text-muted">'
        . '"attach as affected" button. The offer is never taken automatically, and a ticket is '
        . 'never attached without somebody clicking. Tickets in the incident\'s own entity always '
        . 'qualify; tickets in a sub-entity do when the incident is marked as covering '
-       . 'sub-entities. Never another customer\'s.', 'glpimajor')
+       . 'sub-entities. Never another entity\'s.', 'glpimajor')
    . '</p>';
 
 echo "<label class='form-check mb-3'>";
@@ -791,7 +791,7 @@ echo "<hr><label class='form-check mb-2'>";
 echo "<input type='checkbox' class='form-check-input' name='ai_review_enabled' value='1' "
    . (((int) $cfg['ai_review_enabled']) === 1 ? "checked='checked'" : '') . '>';
 echo "<span class='form-check-label'>"
-   . __s('Offer an AI review of customer updates before publishing', 'glpimajor') . '</span></label>';
+   . __s('Offer an AI review of public updates before publishing', 'glpimajor') . '</span></label>';
 echo "<div class='form-text'>"
    . __s('The model reads a draft and reports jargon, internal detail and a missing next step. It '
        . 'never writes or rewrites an update, and publishing works exactly the same without it. '
@@ -954,7 +954,7 @@ if ($can_edit) {
     echo '</div>';
 
     echo "<div class='col-md-3'><label class='form-label'>" . __s('Audience', 'glpimajor') . '</label>';
-    Dropdown::showFromArray('snippet_audience', Update::audiences(), ['value' => Update::CUSTOMER]);
+    Dropdown::showFromArray('snippet_audience', Update::audiences(), ['value' => Update::EXTERNAL]);
     echo '</div>';
 
     echo "<div class='col-md-3'><label class='form-label'>" . __s('Entity') . '</label>';

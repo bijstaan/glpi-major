@@ -8,7 +8,7 @@
  * The public status page.
  *
  * Reached as `/plugins/glpimajor/front/status.php/<token>`, which is the
- * address an administrator hands a customer. No session, no cookie, no login —
+ * address an administrator hands out. No session, no cookie, no login —
  * see the firewall strategy and the stateless-path registration in setup.php.
  *
  * This script does not query the database. Not "queries it carefully", not
@@ -19,7 +19,7 @@
  * malformed request can reach anything that knows what a ticket is.
  *
  * A wrong or retired token is a 404 with nothing in it. Anything else — "no
- * such page for this customer", a redirect, a differently-worded error — tells
+ * such page for this entity", a redirect, a differently-worded error — tells
  * somebody guessing addresses whether they are getting warmer.
  */
 
@@ -69,7 +69,7 @@ $etag     = '"' . substr(sha1($token . '|' . $modified . '|' . $bytes), 0, 32) .
 
 header('Content-Type: text/html; charset=UTF-8');
 header('X-Content-Type-Options: nosniff');
-// A status page must not turn up in search results next to the customer's name.
+// A status page must not turn up in search results next to the entity's name.
 header('X-Robots-Tag: noindex, nofollow');
 // The address is the secret, so nothing about this page should be framed or
 // embedded into somebody else's.

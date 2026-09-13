@@ -19,13 +19,13 @@ use Html;
  *    the service owner reads the morning after, and what an auditor is shown.
  *  - **The post-incident review** — what happened, what it cost, why, and what
  *    is being done about it. This is the one that leaves the building: it goes
- *    to the customer whose service was down, and it is the document a major
+ *    to the people whose service was down, and it is the document a major
  *    incident is ultimately judged on.
  *
  * The split matters because of one field. An update carries an `audience`, and
  * the internal ones say things like "failover is stuck, trying the manual
- * route" that are true, useful, and not for the customer. The PIR document
- * includes only the customer-facing updates; the incident record includes both
+ * route" that are true, useful, and not for publication. The PIR document
+ * includes only the public updates; the incident record includes both
  * and marks which is which. Getting that wrong in the wrong direction is the
  * kind of mistake that ends up in a contract dispute, so it is decided here —
  * in the plugin that owns the field — rather than in a generic exporter that
@@ -50,7 +50,7 @@ final class PdfDocument
                 'parts'    => [
                     ['key' => 'mi.summary',  'label' => __('Summary and fields', 'glpimajor'), 'default' => true],
                     ['key' => 'mi.outcome',  'label' => __('Outcome', 'glpimajor'),            'default' => true],
-                    ['key' => 'mi.updates',  'label' => __('Updates, internal and customer', 'glpimajor'), 'default' => true],
+                    ['key' => 'mi.updates',  'label' => __('Updates, internal and public', 'glpimajor'), 'default' => true],
                     ['key' => 'mi.affected', 'label' => __('Affected tickets', 'glpimajor'),   'default' => true],
                 ],
                 'build'    => static fn(CommonDBTM $item, array $parts = []): ?Doc
@@ -66,7 +66,7 @@ final class PdfDocument
                     ['key' => 'pir.summary', 'label' => __('Summary and duration', 'glpimajor'), 'default' => true],
                     ['key' => 'pir.review',  'label' => __('What happened, impact, root cause', 'glpimajor'), 'default' => true],
                     ['key' => 'pir.actions', 'label' => __('Actions', 'glpimajor'),               'default' => true],
-                    ['key' => 'pir.updates', 'label' => __('What we told customers', 'glpimajor'), 'default' => true],
+                    ['key' => 'pir.updates', 'label' => __('What we published', 'glpimajor'), 'default' => true],
                 ],
                 'build'    => static fn(CommonDBTM $item, array $parts = []): ?Doc
                     => self::pir($item, $parts),
@@ -145,8 +145,8 @@ final class PdfDocument
     /**
      * The update stream.
      *
-     * `$audience` null means every update, each labelled. A customer-facing
-     * document passes Update::CUSTOMER and gets only those — see the class
+     * `$audience` null means every update, each labelled. A public
+     * document passes Update::EXTERNAL and gets only those — see the class
      * comment for why that decision lives here.
      */
     private static function updates(Doc $doc, int $incidents_id, ?string $audience): void
@@ -162,8 +162,8 @@ final class PdfDocument
             $kind = Incident::stateLabel((string) $update['state_at_time']);
 
             if ($audience === null) {
-                $kind .= '  ·  ' . ((string) $update['audience'] === Update::CUSTOMER
-                    ? __('customer', 'glpimajor')
+                $kind .= '  ·  ' . ((string) $update['audience'] === Update::EXTERNAL
+                    ? __('public', 'glpimajor')
                     : __('internal', 'glpimajor'));
             }
 
@@ -175,8 +175,8 @@ final class PdfDocument
             ];
         }
 
-        $doc->section($audience === Update::CUSTOMER
-            ? __('What we told customers', 'glpimajor')
+        $doc->section($audience === Update::EXTERNAL
+            ? __('What we published', 'glpimajor')
             : __('Updates', 'glpimajor'))
             ->timeline($entries);
     }
@@ -224,7 +224,7 @@ final class PdfDocument
     // ------------------------------------------------------------ the PIR
 
     /**
-     * The review, as the customer receives it.
+     * The review, as the reader receives it.
      *
      * Returns null when there is no review yet rather than an empty template.
      * A PIR with three blank headings is worse than no PIR: it looks like the
@@ -328,7 +328,7 @@ final class PdfDocument
             self::actions($doc, (int) $pir['id']);
         }
         if ($want('pir.updates')) {
-            self::updates($doc, $incidents_id, Update::CUSTOMER);
+            self::updates($doc, $incidents_id, Update::EXTERNAL);
         }
 
         return $doc;
@@ -373,7 +373,7 @@ final class PdfDocument
      * How long it ran, in words.
      *
      * "3h 42m" rather than a pair of timestamps the reader has to subtract. On
-     * a review that goes to a customer this is the number they remember, and it
+     * a review that goes outside this is the number they remember, and it
      * is the one that should not be left as an exercise.
      */
     private static function duration(string $from, string $to): string

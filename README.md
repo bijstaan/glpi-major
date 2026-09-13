@@ -1,11 +1,11 @@
 # GLPI Major
 
-Major-incident mode for GLPI 11, and a customer-facing status page.
+Major-incident mode for GLPI 11, and a public status page.
 
 A major incident is a mode, not a priority level. This plugin gives it a shape:
-one record, one commander, one comms owner, one customer-visible title, one
+one record, one commander, one comms owner, one public title, one
 update log with an audience on every line, and one published page you can point
-a whole customer at instead of answering twelve tickets by hand.
+a whole entity at instead of answering twelve tickets by hand.
 
 ![Major-incident banner at the top of a ticket, naming the commander and comms owner](docs/screenshots/major-02-banner.png)
 
@@ -14,14 +14,14 @@ a whole customer at instead of answering twelve tickets by hand.
 | | Priority = Very high | This plugin |
 |---|---|---|
 | Says who is commanding | no | yes, and it is a field |
-| Says who is telling the customer | no | yes, separately from the commander |
+| Says who is telling everyone outside | no | yes, separately from the commander |
 | A title safe to publish | no — the ticket title has hostnames in it | its own field, defaulting to the ticket's |
 | Gathers the duplicate tickets | no | offers a one-click attach; never automatic |
 | Answers them when it is over | no | proposes a solution on each, pending approval |
 | A promise of the next update | no | a field, and a cron that chases it |
-| Something the customer can read | no | a static, branded, public status page |
+| Something the reader can read | no | a static, branded, public status page |
 | Somewhere the requester can find it | no | a banner and a standing link on their own portal |
-| One outage across a customer's offices | no | one declaration, marked as covering sub-entities |
+| One outage across an organisation's offices | no | one declaration, marked as covering sub-entities |
 | A review afterwards | no | a structured one whose timeline is assembled |
 
 GLPI's linked and child tickets are the right primitives and this plugin uses
@@ -32,7 +32,7 @@ the audience on a message, and the artefact.
 
 - **Declaration** — promote any ticket, under a right of its own
   (`plugin_glpimajor_declare`). Roles, state (investigating → identified →
-  monitoring → resolved), and a customer-visible title defaulting to the
+  monitoring → resolved), and a public title defaulting to the
   ticket's.
 - **A banner in the record**, at the top of the ticket rather than behind a tab:
   roles, state, affected count, how overdue the next update is. Where
@@ -41,16 +41,16 @@ the audience on a message, and the artefact.
 - **Duplicate attachment** — while an incident is open, matching tickets are
   offered *"Possible duplicate of `<title>` — Attach as affected"*. One click
   links it and records who clicked. Matching is category by default, optionally
-  location and title wording, always inside a time window and the same customer's
+  location and title wording, always inside a time window and the same entity's
   subtree.
-- **One outage across a customer's offices** — a declaration at a parent entity
+- **One outage across an organisation's offices** — a declaration at a parent entity
   can be marked *Also covers sub-entities*. It then appears on every sub-entity's
-  status page, their tickets get the duplicate offer, and one customer update
+  status page, their tickets get the duplicate offer, and one public update
   reaches all of them. It travels only downwards.
 - **A war-room cockpit** — the incident opens on a header rather than a form: the
-  customer-visible title, the state as a pill, "Ongoing for 2h 14m" live, a
+  public title, the state as a pill, "Ongoing for 2h 14m" live, a
   four-state progression strip, and the numbers people ask out loud — declared
-  when and by whom, how long the customer waited for the first word, affected
+  when and by whom, how long people waited for the first word, affected
   tickets, when the next update is due. One prominent button offers the natural
   next transition and drops you into the composer with that state pre-selected.
 - **An incident feed**, separate from the ticket timeline: the declaration, every
@@ -58,10 +58,10 @@ the audience on a message, and the artefact.
   state change. Per-entity templates. A promised next-update time, one click to
   set, and a cron that reminds the comms owner and only them. The composer posts
   the note, the state change and the new promise in one go.
-- **A status page** per entity: public, at an unguessable address, wearing the
-  MSP's branding and using none of GLPI's vocabulary.
+- **A status page** per entity: public, at an unguessable address, wearing your
+  branding and using none of GLPI's vocabulary.
 - **A public post-mortem** — the finished account of a resolved incident, written
-  for the customer and shown first in that incident's entry on the status page.
+  for its readers and shown first in that incident's entry on the status page.
   Drafted in the war room from the moment the incident exists, publishable only
   once resolved, retractable at any time. Distinct from the internal
   post-incident review.
@@ -78,13 +78,13 @@ Declaring is a small control on the ticket itself rather than a page of its own:
 at the moment somebody decides an outage is a major incident they have already
 spent the time they had.
 
-![Declare control open on a ticket, customer-visible title pre-filled](docs/screenshots/major-01-declare.png)
+![Declare control open on a ticket, public title pre-filled](docs/screenshots/major-01-declare.png)
 
 ![Possible-duplicate banner offering to attach the ticket as affected](docs/screenshots/major-04-duplicate.png)
 
 ![War-room cockpit: title, state pill, ongoing-for, progression strip, stat chips, next-transition button](docs/screenshots/major-11-cockpit.png)
 
-![Incident feed, each entry labelled internal or customer-visible, state changes interleaved](docs/screenshots/major-03-updates.png)
+![Incident feed, each entry labelled internal or public, state changes interleaved](docs/screenshots/major-03-updates.png)
 
 ![The composer posting a note, a state change and a next-update promise in one go](docs/screenshots/major-10-one-post.png)
 
@@ -108,14 +108,14 @@ an entity. Until then the plugin is entirely internal.
 ```mermaid
 flowchart LR
     subgraph glpi["GLPI (authenticated)"]
-        change["Customer-visible change:<br/>declare · state · update ·<br/>resolve · maintenance"] --> pub["Publisher"]
+        change["Public change:<br/>declare · state · update ·<br/>resolve · maintenance"] --> pub["Publisher"]
         pub -- "covers sub-entities?" --> tree["Every published page<br/>in the declaring entity's<br/>subtree — one query"]
         tree --> ren["Renderer<br/>(inline CSS, no external requests)"]
         ren --> file[("status/&lt;token&gt;.html<br/>one per entity,<br/>written atomically")]
         pub -.-> portal["Portal cache<br/>dropped per entity"]
     end
     subgraph public["Public internet (no session, no DB)"]
-        customer["Customer"] --> ep["front/status.php/&lt;token&gt;"]
+        reader["Reader"] --> ep["front/status.php/&lt;token&gt;"]
         ep -- "48-hex check, readfile()" --> file
     end
     subgraph inside["Self-service portal (logged in)"]
@@ -125,7 +125,7 @@ flowchart LR
     banner --> ep
 ```
 
-The page is statically rendered. On every customer-visible change the whole
+The page is statically rendered. On every public change the whole
 document is regenerated and written to
 `GLPI_PLUGIN_DOC_DIR/glpimajor/status/<token>.html`, and a public endpoint serves
 that file.
@@ -146,7 +146,7 @@ from the internet reaches anything that knows what a ticket is.
   a plain wordmark from this plugin's own settings.
 - **Look** — built from GLPI 11's own visual vocabulary: Tabler cards, badges,
   alerts, list groups and status dots with the same tokens the interface uses, so
-  a customer who has seen the portal recognises it. It cannot link GLPI's
+  a reader who has seen the portal recognises it. It cannot link GLPI's
   stylesheet — the page is a flat file served without a session, and a `<link>`
   to the instance would defeat both the no-external-request property and the
   caching — so the CSS is a small hand-written subset of Tabler carrying real
@@ -161,7 +161,7 @@ from the internet reaches anything that knows what a ticket is.
 - **Caching** — `Cache-Control: public, max-age=60`, plus `ETag` and
   `Last-Modified`, so a room full of people refreshing during an outage costs one
   read rather than four hundred. This only works because no session is started.
-  One consequence: a customer who already has the page keeps it for up to a
+  One consequence: a reader who already has the page keeps it for up to a
   minute after an address is revoked, though the server stops serving it
   immediately.
 - **Freshness** — a cron republishes anything stale as a backstop, reported on the
@@ -174,18 +174,18 @@ The page contains no GLPI vocabulary — no "ticket", no "entity", no "requester
 
 ## The self-service portal
 
-![Portal home with a status banner above the tiles, naming the customer-visible title](docs/screenshots/major-08-portal-banner.png)
+![Portal home with a status banner above the tiles, naming the public title](docs/screenshots/major-08-portal-banner.png)
 
 - **A status page inside the portal** — a signed-in requester gets it as an
   ordinary portal page in the interface's own chrome rather than being sent to
   the public file. Same data, same allow-list, same layout:
   `PortalStatus::show()` prints `Renderer::body()`, the identical call the
   published file wraps in its own document. Signing in does not entitle a
-  customer to more than the address does, so there is no internal variant and the
+  reader to more than the address does, so there is no internal variant and the
   suite runs the same redaction checks over both. There is **no id in the URL** —
   the organisation comes from the session, so there is nothing to tamper with and
   nothing to enumerate.
-- **While something is happening** — a banner with the customer-visible title,
+- **While something is happening** — a banner with the public title,
   the state in the status page's words, and a link to the in-portal page. It also
   covers planned work under way or starting within the day.
 - **When nothing is** — a standing **Service status** entry in the portal
@@ -213,9 +213,9 @@ works but buries the entry two clicks deep under a "Plugins" heading.
 ## One outage, several offices
 
 Ticking **Also covers sub-entities** on the declaration makes one outage one
-incident: every sub-entity's status page carries it with the same customer
+incident: every sub-entity's status page carries it with the same public
 updates, their tickets are offered the same one-click attach, a requester in any
-of them sees it on their portal, and one customer update rewrites every published
+of them sees it on their portal, and one public update rewrites every published
 page underneath.
 
 ![The Manchester office's status page carrying the incident declared at the firm above it](docs/screenshots/major-09-child-status.png)
@@ -228,7 +228,7 @@ directions.
 
 The checkbox appears only when the entity has sub-entities, and is off by
 default: putting an outage on a page is a publication, and ticking a box costs a
-click while taking an outage back off three customers' pages costs an
+click while taking an outage back off three entities' pages costs an
 explanation.
 
 Resolution is unchanged: the outcome is proposed onto **attached** tickets only.
@@ -237,7 +237,7 @@ Resolution is unchanged: the outcome is proposed onto **attached** tickets only.
 
 With `glpiai` installed, a provider configured and the entity permitted in
 glpiai's own settings, the composer offers **Review before publishing** on a
-customer-audience update. The model reports jargon a customer would not follow,
+public update. The model reports jargon a reader would not follow,
 detail that should not leave the estate (hostnames, vendors, names, addresses,
 speculation stated as fact), and whether the update fails to say what happens
 next.
@@ -247,9 +247,9 @@ requested, and whether the wording changed afterwards, are both recorded against
 the published update.
 
 Under the same guards and the same switch, the post-mortem panel offers **Draft
-with AI**: a first draft of the customer-facing post-mortem built from the
+with AI**: a first draft of the public post-mortem built from the
 incident's own record — the state timeline, the update log, the outcome, and the
-internal review's answers where filled — pinned to plain customer-safe prose. The
+internal review's answers where filled — pinned to plain publishable prose. The
 draft lands in the textarea for a human to edit; publishing is always a human
 act, and a published text that originated as a draft says so permanently
 (`ai_drafted`, alongside the update log's `ai_reviewed`).
@@ -279,7 +279,7 @@ written where the button would be.
 | Grace period | 5 min | Nothing is late the instant it is due |
 | Remind again after | 30 min | A reminder every cron run gets muted |
 | Default next-update interval | 60 min | What the one-click button offers |
-| AI review of customer updates | off | Requires glpiai and its entity gate |
+| AI review of public updates | off | Requires glpiai and its entity gate |
 | Require an outcome summary to resolve | on | It is also what affected tickets receive |
 | Lock a review when complete | on | The lock has a key; unlocking is recorded |
 | Attach this procedure on resolution | none | Requires glpisop |
@@ -307,12 +307,12 @@ present.
 
 ### Maintenance announcements
 
-Another plugin can put a maintenance window on a customer's status page:
+Another plugin can put a maintenance window on an entity's status page:
 
 ```php
 $id = \GlpiPlugin\Glpimajor\Maintenance::announce([
     'entities_id'  => 4,                       // required
-    'name'         => 'Overnight firewall upgrade',   // required, customer-facing
+    'name'         => 'Overnight firewall upgrade',   // required, public
     'content'      => 'Internet access will drop briefly, twice.',
     'date_start'   => '2026-09-01 22:00:00',
     'date_end'     => '2026-09-02 02:00:00',
@@ -324,12 +324,12 @@ $id = \GlpiPlugin\Glpimajor\Maintenance::announce([
 // int on success, false on refusal — Maintenance::lastError() says why.
 
 \GlpiPlugin\Glpimajor\Maintenance::withdraw('glpichange', 'change:1234');
-// Marks it cancelled rather than deleting it: a window a customer already
+// Marks it cancelled rather than deleting it: a window a reader already
 // planned around should visibly go away.
 ```
 
 `source` + `external_key` make `announce()` an upsert, so a caller re-running its
-own sync updates its window rather than littering the customer's page. The
+own sync updates its window rather than littering the entity's page. The
 affected entity's page is republished automatically. No session or right is
 required, so a cron in another plugin can call it.
 
@@ -374,8 +374,8 @@ for the status page's branding.
 
 ## Limitations
 
-- **One brand, not one per customer.** glpiwhitelabel is instance-wide, so every
-  status page wears the MSP's identity. Per-entity you get a page title, a
+- **One brand, not one per entity.** glpiwhitelabel is instance-wide, so every
+  status page wears the same identity. Per-entity you get a page title, a
   support note and the support contact.
 - **The status page is English.** Its strings are not translated: it is one
   document served to whoever holds the address, with no session to read a
@@ -387,10 +387,10 @@ for the status page's branding.
   exists so the incident list can sort on it, and it is recomputed on every attach
   and detach.
 - **Coverage is downwards only, with no way to ask for anything else.** If two
-  customers share a real dependency, that is two declarations, deliberately.
+  entities share a real dependency, that is two declarations, deliberately.
 - **Republishing a covering change costs one render per published page in the
   subtree, on the request that made the change.** Three offices is three small
-  files. A customer with forty sub-entities that have all been given addresses is
+  files. An organisation with forty sub-entities that have all been given addresses is
   forty renders on that request. The query only finds pages that exist, so the
   cost tracks addresses somebody minted rather than branches in the tree.
 - **The portal reads a cache** — sixty seconds per entity, dropped whenever that
@@ -422,7 +422,7 @@ docker compose -p glpi exec glpi sh -c 'cd /var/www/glpi/plugins/glpimajor && te
 `matching.php` covers duplicate matching, `feed.php` the update log and its
 audiences, `nag.php` the next-update reminder arithmetic, and `statuspage.php`
 the renderer — including the word-by-word scan that keeps GLPI's vocabulary off a
-customer-facing page, and the redaction checks that run over both the published
+public page, and the redaction checks that run over both the published
 file and the in-portal view.
 
 `db-live.php` needs an active install and writes to it. `tests/browser/` covers

@@ -227,7 +227,7 @@ final class Pir
      * The timeline, assembled.
      *
      * Two sources merged and sorted: what we told people (the update log, with
-     * its audience, because "we said nothing to the customer for four hours" is
+     * its audience, because "we said nothing in public for four hours" is
      * the finding that matters most often) and what we did (the audit rows,
      * filtered to the moments worth a line).
      *
@@ -254,13 +254,13 @@ final class Pir
         // stable, so merging it as it comes leaves two updates written in the
         // same second in the log's order — which tells that second of the story
         // backwards, and the second in which somebody wrote an internal note
-        // and then told the customer is exactly the second a review is about.
+        // and then said so publicly is exactly the second a review is about.
         foreach (array_reverse(Update::forIncident($incidents_id)) as $update) {
             $rows[] = [
                 'at'    => (string) $update['date_creation'],
                 'kind'  => 'update',
-                'label' => (string) $update['audience'] === Update::CUSTOMER
-                    ? __('Update to the customer', 'glpimajor')
+                'label' => (string) $update['audience'] === Update::EXTERNAL
+                    ? __('Public update', 'glpimajor')
                     : __('Internal note', 'glpimajor'),
                 'detail' => mb_substr(trim((string) $update['content']), 0, 300),
             ];

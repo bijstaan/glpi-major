@@ -8,9 +8,9 @@
  * The published page, shown to an administrator.
  *
  * Serves the *file*, not a fresh render. A preview that re-rendered would be a
- * different document from the one a customer is reading — subtly, whenever
+ * different document from the one a reader is reading — subtly, whenever
  * something changed between the last publish and now — and the whole question
- * a preview answers is "what does the customer see".
+ * a preview answers is "what does the reader see".
  *
  * Authenticated, unlike front/status.php: this is reached from the settings
  * page, by somebody who is already logged in, and it exists so an administrator

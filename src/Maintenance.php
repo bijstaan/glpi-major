@@ -15,7 +15,7 @@ use Html;
  *
  * Self-contained: this plugin owns the table, the form and the list. It is an
  * itemtype rather than a section of the settings page because these are dated
- * objects with a lifecycle, there are several per customer, and — the part that
+ * objects with a lifecycle, there are several per entity, and — the part that
  * decides it — other plugins will eventually want to push them.
  *
  * That last part is what `source` and `external_key` are for. A change-approval
@@ -62,7 +62,7 @@ class Maintenance extends CommonDBTM
     /**
      * Recursive downwards, on the same terms as an incident.
      *
-     * A window announced at the customer's head office that takes all three
+     * A window announced at the entity's head office that takes all three
      * branches offline is one window. See Incident::maybeRecursive() for the
      * argument, and Tree for the reason a sibling cannot be reached.
      */
@@ -116,9 +116,9 @@ class Maintenance extends CommonDBTM
      * right, or knowledge of our schema — a cron in another plugin can call it.
      *
      * Payload:
-     *   entities_id   int      required. The customer the window belongs to.
-     *   name          string   required. The title a customer reads.
-     *   content       string   optional. What the customer should expect.
+     *   entities_id   int      required. The entity the window belongs to.
+     *   name          string   required. The title a reader reads.
+     *   content       string   optional. What readers should expect.
      *   date_start    string   optional, 'Y-m-d H:i:s'.
      *   date_end      string   optional, 'Y-m-d H:i:s'.
      *   state         string   optional, one of scheduled|in_progress|completed|cancelled.
@@ -128,7 +128,7 @@ class Maintenance extends CommonDBTM
      * When `source` and `external_key` are both given, the call is an upsert:
      * announcing the same pair twice updates the first row rather than creating
      * a second. That is the whole point — a caller re-running its own sync must
-     * not litter a customer's status page.
+     * not litter an entity's status page.
      *
      * Returns the row id, or false. `Maintenance::lastError()` says why.
      */
@@ -216,7 +216,7 @@ class Maintenance extends CommonDBTM
     /**
      * Withdraw an announcement pushed by another plugin.
      *
-     * Marks it cancelled rather than deleting it: a window a customer already
+     * Marks it cancelled rather than deleting it: a window a reader already
      * read about and planned around should visibly go away, and a row that
      * silently vanishes is indistinguishable from one that was never pushed.
      */
@@ -278,7 +278,7 @@ class Maintenance extends CommonDBTM
      * What an entity's status page should show: scheduled and in-progress only.
      *
      * Its own windows, and any declared at an ancestor as covering its
-     * sub-entities. A firewall replacement at the customer's head office that
+     * sub-entities. A firewall replacement at the entity's head office that
      * takes all three branches offline is announced once and read in three
      * places, which is the same argument as the recursive incident and has to
      * be the same rule — a child page carrying the parent's outage but not the
@@ -409,7 +409,7 @@ class Maintenance extends CommonDBTM
             $input['name'] = trim((string) $input['name']);
             if ($input['name'] === '') {
                 \Session::addMessageAfterRedirect(
-                    __s('A maintenance window needs a title the customer can read.', 'glpimajor'),
+                    __s('A maintenance window needs a title the reader can read.', 'glpimajor'),
                     false,
                     ERROR
                 );
@@ -586,7 +586,7 @@ class Maintenance extends CommonDBTM
         echo "<td colspan='3'>";
         echo Html::input('name', ['value' => $this->fields['name'] ?? '', 'size' => 80, 'required' => 'required']);
         echo "<div class='form-text'>"
-           . __s('This appears on the customer\'s status page exactly as written.', 'glpimajor')
+           . __s('This appears on the public status page exactly as written.', 'glpimajor')
            . '</div></td></tr>';
 
         echo $row() . '<td>' . __s('Starts', 'glpimajor') . '</td><td>';
@@ -629,7 +629,7 @@ class Maintenance extends CommonDBTM
         echo "<textarea class='form-control' name='content' rows='4'>"
            . $e($this->fields['content'] ?? '') . '</textarea>';
         echo "<div class='form-text'>"
-           . __s('What the customer should expect: what will be unavailable, and for how long. '
+           . __s('What readers should expect: what will be unavailable, and for how long. '
                . 'Plain language — this is published as written.', 'glpimajor')
            . '</div></td></tr>';
 

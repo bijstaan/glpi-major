@@ -37,7 +37,7 @@ final class Banner
 
         // Technician-facing. A requester looking at their own ticket in the
         // helpdesk interface must not be shown internal role assignments, and
-        // the thing they *should* see — the customer-facing narrative — is the
+        // the thing they *should* see — the public narrative — is the
         // status page, which says only what somebody decided to publish.
         if (\Session::getCurrentInterface() !== 'central') {
             return;
@@ -145,12 +145,12 @@ final class Banner
            . $e(\Session::getNewCSRFToken()) . "'$form>";
         echo "<input type='hidden' name='tickets_id' value='" . (int) $ticket->getID() . "'$form>";
 
-        echo "<label class='form-label'>" . __s('Customer-visible title', 'glpimajor') . '</label>';
+        echo "<label class='form-label'>" . __s('Public title', 'glpimajor') . '</label>';
         echo "<input type='text' class='form-control' name='name' value='"
            . $e($ticket->fields['name']) . "' required$form>";
         echo "<div class='form-text'>"
            . __s('Pre-filled from this ticket, which is usually the wrong thing to publish. '
-               . 'The customer reads this on the status page.', 'glpimajor')
+               . 'This is what readers see on the status page.', 'glpimajor')
            . '</div>';
 
         echo "<div class='row g-2 mt-1'>";
@@ -176,8 +176,8 @@ final class Banner
         ]);
         echo '</div></div>';
 
-        // Offered only where it can mean anything. A customer with one site
-        // never sees the question; a customer with three offices is asked it
+        // Offered only where it can mean anything. An organisation with one site
+        // never sees the question; an organisation with three offices is asked it
         // once, at the only moment anybody knows the answer.
         if (Tree::hasChildren($entities_id)) {
             $children = Tree::descendants($entities_id);
@@ -190,9 +190,9 @@ final class Banner
                . __s('Also covers sub-entities', 'glpimajor') . '</span></label>';
             echo "<div class='form-text'>"
                . sprintf(
-                   __s('This customer has %d sub-entities. Ticked, the incident is published to '
+                   __s('This entity has %d sub-entities. Ticked, the incident is published to '
                      . 'their status pages too and their tickets are offered the attach. It never '
-                     . 'reaches another customer.', 'glpimajor'),
+                     . 'reaches another entity.', 'glpimajor'),
                    count($children)
                )
                . '</div>';
@@ -228,7 +228,7 @@ final class Banner
 
         echo "<div class='glpimajor-title'>" . $e($row['name']) . '</div>';
         echo "<div class='glpimajor-sub'>"
-           . __s('The title above is what the customer reads. It is not this ticket\'s title.', 'glpimajor')
+           . __s('The title above is what the reader reads. It is not this ticket\'s title.', 'glpimajor')
            . '</div>';
 
         echo "<div class='glpimajor-roles'>";

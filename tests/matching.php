@@ -11,8 +11,8 @@
  * two kinds and only one of them is survivable. Offering nothing means twelve
  * people file twelve tickets and nobody notices — annoying, and exactly the
  * state of the world before this plugin. Offering the wrong incident means a
- * technician is told, on a customer's ticket, the name of a different
- * customer's outage. The first assertions here are about that.
+ * technician is told, on one entity's ticket, the name of a different
+ * entity's outage. The first assertions here are about that.
  *
  * Usage, inside the GLPI container:
  *   php /var/www/glpi/plugins/glpimajor/tests/matching.php
@@ -97,7 +97,7 @@ check(
         $rules,
         NOW
     ) !== [],
-    'one customer with two offices is one customer'
+    'one organisation with two offices is one organisation'
 );
 check(
     'the same incident without the flag is not',

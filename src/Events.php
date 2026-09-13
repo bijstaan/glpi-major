@@ -116,7 +116,7 @@ class Events extends CommonDBTM
             self::DECLARED   => __('Declared a major incident', 'glpimajor'),
             self::STATE      => __('State changed', 'glpimajor'),
             self::ROLE       => __('Roles changed', 'glpimajor'),
-            self::TITLE      => __('Customer-visible title changed', 'glpimajor'),
+            self::TITLE      => __('Public title changed', 'glpimajor'),
             self::ATTACHED   => __('Ticket attached as affected', 'glpimajor'),
             self::DETACHED   => __('Ticket detached', 'glpimajor'),
             self::PROPOSED   => __('Resolution proposed to affected tickets', 'glpimajor'),

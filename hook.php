@@ -16,7 +16,7 @@ use GlpiPlugin\Glpimajor\Settings;
  * Time columns are DATETIME / TIMESTAMP rather than the unix INTs glpi-presence
  * uses. Presence has a seconds-granularity expiry computed in PHP, where mixing
  * clocks matters; here every timestamp is either read by a human or compared at
- * minute granularity, and half of them are rendered onto a page a customer
+ * minute granularity, and half of them are rendered onto a page an outsider
  * reads — so the GLPI convention wins and Html::convDateTime() works unaided.
  *
  * `state`, `audience` and `status` are VARCHAR rather than ENUM: adding a value
@@ -35,8 +35,8 @@ function plugin_glpimajor_install()
     // on a ticket rather than a parallel object that can drift from it.
     //
     // `is_recursive` means "this outage also covers the sub-entities of the
-    // entity it was declared in", and it travels strictly *down*. A customer
-    // with three offices is one customer; a sibling entity is a different one,
+    // entity it was declared in", and it travels strictly *down*. An organisation
+    // with three offices is one organisation; a sibling entity is a different one,
     // and no query in this plugin can reach one from here. Default 0: putting
     // an outage on a page is a publication, and the safe direction for a
     // default is the one that publishes less.
@@ -94,7 +94,7 @@ function plugin_glpimajor_install()
         );
     }
 
-    // The comms log. Separate from the ticket timeline on purpose: a customer
+    // The comms log. Separate from the ticket timeline on purpose: a reader
     // update has an audience, is versioned against the state we believed at the
     // time, and is the source for a published artefact. A followup is none of
     // those things.
@@ -185,7 +185,7 @@ function plugin_glpimajor_install()
                 `state` VARCHAR(16) NOT NULL DEFAULT 'scheduled',
                 -- NULL, not '', and that is load-bearing. The unique key below
                 -- exists so a plugin re-pushing its own announcement updates one
-                -- row instead of littering a customer's page. With empty strings
+                -- row instead of littering an entity's page. With empty strings
                 -- as the default, every window created *by hand* shares the key
                 -- ('','') — so the instance could hold exactly one of them, and
                 -- the second one an administrator typed died on a duplicate-key
@@ -326,7 +326,7 @@ function plugin_glpimajor_install()
     }
 
     // Five minutes, because the unit of a broken promise is a minute and a
-    // customer waiting on an update notices a quarter of an hour.
+    // reader waiting on an update notices a quarter of an hour.
     CronTask::register(
         Incident::class,
         'nag',
@@ -340,9 +340,9 @@ function plugin_glpimajor_install()
         ]
     );
 
-    // The page is regenerated synchronously on every customer-visible change.
+    // The page is regenerated synchronously on every public change.
     // This is the backstop that makes a missed regeneration self-heal, rather
-    // than leaving a customer reading yesterday and nobody knowing.
+    // than leaving a reader reading yesterday and nobody knowing.
     CronTask::register(
         Page::class,
         'publish',
@@ -395,7 +395,7 @@ function plugin_glpimajor_install()
  * `is_recursive` defaults to 0 on both tables on purpose. An instance upgrading
  * into this feature has incidents and windows that were declared under a model
  * where propagation did not exist; giving any of them a subtree retroactively
- * would publish an outage onto a page whose customer never agreed to see it.
+ * would publish an outage onto a page whose readers never agreed to see it.
  */
 function plugin_glpimajor_migrate()
 {
@@ -603,7 +603,7 @@ function plugin_glpimajor_uninstall()
 
     // Published pages are the only thing this plugin leaves outside the
     // database, and leaving them behind would mean a token that still serves a
-    // customer-facing page after the plugin is gone.
+    // public page after the plugin is gone.
     Page::purgeAllFiles();
 
     return true;

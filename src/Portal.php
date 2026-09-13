@@ -18,11 +18,11 @@ namespace GlpiPlugin\Glpimajor;
  * Two surfaces, deliberately different promises:
  *
  *   - **The banner**, when something is actually happening. Named in the
- *     customer's own vocabulary, linking to their entity's page.
+ *     entity's own vocabulary, linking to their entity's page.
  *   - **The quiet link**, when nothing is. A nav entry that says a page exists,
  *     shown only when there is one to read.
  *
- * Nothing internal reaches either. The banner carries a customer-visible title
+ * Nothing internal reaches either. The banner carries a public title
  * and a state label and nothing else — no commander, no comms owner, no ticket,
  * no update text of any audience. The link is the entity's own public address,
  * which is theirs to have; it is what an administrator would email them.
@@ -39,7 +39,7 @@ final class Portal
      * How long a portal state survives untouched.
      *
      * Short, because the thing it is caching is "is my office's outage still
-     * on". Any customer-visible change republishes the page and drops this key
+     * on". Any public change republishes the page and drops this key
      * on the way past, so the minute is the ceiling on staleness for a change
      * that somehow bypassed the publisher — not the normal latency.
      */
@@ -123,7 +123,7 @@ final class Portal
 
         // Nothing at all until publishing is on and this entity has a live
         // address. A banner that links to a page nobody can open is worse than
-        // no banner: it tells a customer there is somewhere to look and then
+        // no banner: it tells a reader there is somewhere to look and then
         // does not take them there.
         if (!Settings::flag('status_enabled')) {
             return $empty;
@@ -142,7 +142,7 @@ final class Portal
         $state = [
             // Three shapes of one address, because three consumers need
             // different ones and computing the wrong one is a link that 404s in
-            // a customer's face.
+            // a reader's face.
             //
             //   url  — absolute, from url_base. What an administrator emails.
             //   href — root-relative including root_doc. What the banner's
@@ -193,7 +193,7 @@ final class Portal
                     'OR' => Tree::visibleFrom($entities_id),
                     // In progress now, or starting inside the horizon. A window
                     // three weeks out is on the status page, which is where a
-                    // customer goes to plan; it is not worth a banner on the
+                    // announcement goes to plan; it is not worth a banner on the
                     // page they open to raise a ticket about a printer.
                     'AND' => [
                         'OR' => [
@@ -227,7 +227,7 @@ final class Portal
      * Called from the publisher, which already knows every entity whose page it
      * has just rewritten — including the whole subtree of a recursive incident.
      * That is why the TTL can be a backstop rather than the mechanism: a
-     * customer update posted at 09:14 is on the portal at 09:14.
+     * public update posted at 09:14 is on the portal at 09:14.
      */
     public static function forget(int $entities_id): void
     {
@@ -347,7 +347,7 @@ final class Portal
      * Added through `Hooks::REDEFINE_MENUS` rather than `helpdesk_menu_entry`.
      * The older hook works — `Html::generateHelpMenu()` still reads it — but it
      * forces the entry into a shared "Plugins" dropdown, titled with the
-     * plugin's own name, two clicks from anywhere. A customer looking for
+     * plugin's own name, two clicks from anywhere. A reader looking for
      * "is it just me" does not go looking under Plugins. `REDEFINE_MENUS` runs
      * immediately afterwards in the same method and takes a flat top-level
      * entry with the title we choose.

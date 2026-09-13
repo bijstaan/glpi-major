@@ -479,7 +479,7 @@ final class MobileController extends AbstractController
         // written. Drafts are included, marked `is_published: false` — every
         // caller here holds the same READ right the war room needs, and the
         // app showing "there is a draft" is the war-room panel's parity, not
-        // a leak; what the *customer* sees is decided by Publisher, which
+        // a leak; what the *public* sees is decided by Publisher, which
         // supplies only published text. `published_at` is null for a draft.
         $out['postmortem']     = self::postmortemRow((int) $incident->getID());
 

@@ -238,7 +238,7 @@
                 reviewOut.appendChild(ul);
             };
 
-            add('Jargon a customer may not follow:', result.jargon);
+            add('Jargon a reader may not follow:', result.jargon);
             add('Detail that may not belong outside:', result.internal);
 
             if (result.missing_next_step) {
@@ -274,11 +274,11 @@
                 case 'post': {
                     // One submit, three possible effects. The server decides
                     // what actually changed and refuses what does not add up —
-                    // the only client-side gate is the customer confirmation,
+                    // the only client-side gate is the publish confirmation,
                     // because there is no unsend.
                     const content = textarea ? textarea.value.trim() : '';
                     if (content && audience() === 'customer'
-                        && !window.confirm('Publish this to the customer’s status page?')) {
+                        && !window.confirm('Publish this to the public status page?')) {
                         return;
                     }
                     if (postError) {
@@ -304,10 +304,10 @@
 
                 case 'pm-save':
                 case 'pm-publish':
-                    // Publishing asks first, as every customer-facing act on
+                    // Publishing asks first, as every public act on
                     // this page does — there is no unsend.
                     if (action === 'pm-publish'
-                        && !window.confirm('Publish this post-mortem to the customer’s status page?')) {
+                        && !window.confirm('Publish this post-mortem to the public status page?')) {
                         return;
                     }
                     if (pmError) {

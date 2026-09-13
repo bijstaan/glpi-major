@@ -224,14 +224,14 @@ class Page extends CommonDBTM
         Events::record(0, Events::TOKEN, sprintf('entity %d: revoked', $entities_id), $entities_id);
 
         // A revoked address must stop being offered on the portal at once, not
-        // at the end of the cache window — the link would 404 in a customer's
+        // at the end of the cache window — the link would 404 in a reader's
         // face, which is the one thing worse than no link.
         Portal::forget($entities_id);
 
         return true;
     }
 
-    /** The address to hand a customer. Empty when there is no live page. */
+    /** The address to hand out. Empty when there is no live page. */
     public static function publicUrl(array $row): string
     {
         $token = (string) ($row['token'] ?? '');
@@ -254,7 +254,7 @@ class Page extends CommonDBTM
         }
     }
 
-    /** Uninstall: a revoked plugin must not leave a live customer-facing page. */
+    /** Uninstall: a revoked plugin must not leave a live public page. */
     public static function purgeAllFiles(): void
     {
         $dir = self::dir();
@@ -285,9 +285,9 @@ class Page extends CommonDBTM
     /**
      * The backstop.
      *
-     * Pages are regenerated synchronously on every customer-visible change, so
+     * Pages are regenerated synchronously on every public change, so
      * in the normal case this finds nothing to do. It exists because the
-     * failure mode of the synchronous path is invisible — a customer reading
+     * failure mode of the synchronous path is invisible — a reader reading
      * yesterday's page has no way to tell it is yesterday's — and a page that
      * self-heals within the hour is worth a cheap query every quarter of one.
      *

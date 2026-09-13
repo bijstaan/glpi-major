@@ -23,7 +23,7 @@ use Ticket;
  * Five tools. `major_open_incidents` is the sweep: what is declared and still
  * open in the entities the user can see. `major_incident` is the read: one
  * incident's roles, its promised next update, and the updates already published
- * — which is what somebody answering an affected customer needs, and is also
+ * — which is what somebody answering an affected requester needs, and is also
  * what stops the assistant inventing a reassurance nobody agreed to.
  *
  * The other three are the parts of an incident that outlive it.
@@ -31,7 +31,7 @@ use Ticket;
  * which is what a review is usually about. `major_actions` is what was agreed
  * afterwards and whether anybody did it, the half of post-incident review that
  * quietly rots. `major_maintenance` is the opposite question and the one asked
- * most often at the service desk: is this outage something the customer was
+ * most often at the service desk: is this outage something the requester was
  * already told about?
  *
  * **All five are read-only, and the reads stay read-only in a way worth
@@ -54,7 +54,7 @@ use Ticket;
  */
 final class AiTools
 {
-    /** Customer-facing updates returned with an incident. Newest first. */
+    /** Public updates returned with an incident. Newest first. */
     private const MAX_UPDATES = 8;
 
     /** @return Tool[] */
@@ -78,7 +78,7 @@ final class AiTools
             description: 'Major incidents that are declared and not yet resolved. Check this '
                 . 'first when a ticket describes something being down or slow for more than one '
                 . 'person: if an incident is already running, the answer is to attach the ticket '
-                . 'to it rather than to start diagnosing, and the customer-facing wording has '
+                . 'to it rather than to start diagnosing, and the public wording has '
                 . 'already been agreed. Returns the state, who is commanding it, how many tickets '
                 . 'are attached and when the next update was promised.',
             schema: [
@@ -130,9 +130,9 @@ final class AiTools
             'note'      => $out === []
                 ? 'No major incident is open. A widespread fault may still be one nobody has '
                   . 'declared yet.'
-                : 'The title is the customer-visible one, which is deliberately not the declaring '
+                : 'The title is the public one, which is deliberately not the declaring '
                   . 'ticket\'s title. Use major_incident to read what has already been published '
-                  . 'before telling a customer anything.',
+                  . 'before publishing anything.',
         ];
     }
 
@@ -146,7 +146,7 @@ final class AiTools
                 . 'owner, the outcome if it is resolved, and the updates published about it so '
                 . 'far. Call this with a ticket id to find out whether that ticket *is* a major '
                 . 'incident or is attached to one. Read the published updates before drafting '
-                . 'anything for a customer — what has already been said sets what can be said '
+                . 'anything publicly — what has already been said sets what can be said '
                 . 'next, and contradicting it is worse than saying nothing.',
             schema: [
                 'type'       => 'object',
@@ -230,7 +230,7 @@ final class AiTools
         }
 
         $audience = trim((string) ($arguments['audience'] ?? ''));
-        $audience = in_array($audience, [Update::INTERNAL, Update::CUSTOMER], true) ? $audience : null;
+        $audience = in_array($audience, [Update::INTERNAL, Update::EXTERNAL], true) ? $audience : null;
 
         $updates = [];
         foreach (array_slice(Update::forIncident($incidents_id, $audience), 0, self::MAX_UPDATES) as $row) {
@@ -267,9 +267,9 @@ final class AiTools
             name: 'major_timeline',
             description: 'What actually happened during a major incident, in order: when it was '
                 . 'declared, every update and who it went to, the state changes, and when it was '
-                . 'resolved. Use it for a post-incident review, for "how long were the customers '
+                . 'resolved. Use it for a post-incident review, for "how long were people '
                 . 'left without an update", and when writing anything about how an incident was '
-                . 'handled — the gaps between the customer-facing lines are usually the finding.',
+                . 'handled — the gaps between the public lines are usually the finding.',
             schema: [
                 'type'       => 'object',
                 'properties' => [
@@ -318,14 +318,14 @@ final class AiTools
             ],
             'timeline' => $rows,
             'gaps'     => self::commsGaps($incidents_id),
-            'note'     => 'Oldest first. "Update to the customer" is the only kind the customer '
+            'note'     => 'Oldest first. "Public update" is the only kind a reader '
                 . 'ever saw — internal notes and state changes were invisible to them, however '
                 . 'busy the log looks.',
         ];
     }
 
     /**
-     * The longest stretch the customer heard nothing.
+     * The longest stretch the public heard nothing.
      *
      * Computed rather than left to be counted off a list of timestamps: it is
      * the single number a review turns on, and a model asked to work it out
@@ -338,7 +338,7 @@ final class AiTools
     {
         $stamps = [];
 
-        foreach (Update::forIncident($incidents_id, Update::CUSTOMER) as $row) {
+        foreach (Update::forIncident($incidents_id, Update::EXTERNAL) as $row) {
             $at = strtotime((string) $row['date_creation']);
             if ($at > 0) {
                 $stamps[] = $at;
@@ -383,7 +383,7 @@ final class AiTools
                 . 'post-incident review\'s actions, their owners, due dates and status, with the '
                 . 'review\'s own findings — what happened, the impact, the root cause. Use it '
                 . 'when asked what came out of an incident, whether the follow-up work was ever '
-                . 'done, and before promising a customer that something has been put right.',
+                . 'done, and before promising anyone that something has been put right.',
             schema: [
                 'type'       => 'object',
                 'properties' => [
@@ -489,10 +489,10 @@ final class AiTools
     {
         return new Tool(
             name: 'major_maintenance',
-            description: 'Planned maintenance the customer has already been told about: the '
+            description: 'Planned maintenance already announced publicly: the '
                 . 'windows announced on their status page, when each runs and whether it is '
                 . 'under way right now. Check it before diagnosing anything that started at a '
-                . 'suspiciously round time, and before telling a customer that something is '
+                . 'suspiciously round time, and before telling anyone that something is '
                 . 'unexpectedly down — announced work that a technician treats as an incident '
                 . 'is a wasted afternoon and an unnecessary apology.',
             schema: [
@@ -500,7 +500,7 @@ final class AiTools
                 'properties' => [
                     'entity' => [
                         'type'        => 'integer',
-                        'description' => 'The customer entity. Omit for the conversation\'s own.',
+                        'description' => 'The entity. Omit for the conversation\'s own.',
                     ],
                 ],
             ],
@@ -559,8 +559,8 @@ final class AiTools
                     . 'is announced work until proven otherwise — check before declaring an '
                     . 'incident.'
                 : ($rows === []
-                    ? 'Nothing is announced for this customer. Work nobody announced can still '
-                        . 'be under way — this is the customer-facing calendar, not the change '
+                    ? 'Nothing is announced for this entity. Work nobody announced can still '
+                        . 'be under way — this is the public calendar, not the change '
                         . 'schedule. Use change_calendar for that.'
                     : 'Announced and upcoming, soonest first.'),
         ];

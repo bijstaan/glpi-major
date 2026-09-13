@@ -38,7 +38,7 @@ final class Url
 
     /**
      * Absolute, for anything that leaves the instance — the status-page URL an
-     * administrator copies to a customer, and the logo link inside a page that
+     * administrator copies to somebody outside, and the logo link inside a page that
      * is opened from a bookmark rather than from GLPI.
      */
     public static function absolute(string $path): string

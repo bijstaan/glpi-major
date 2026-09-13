@@ -12,15 +12,15 @@ namespace GlpiPlugin\Glpimajor;
  * A recursive incident travels **down** the declaring entity's subtree and
  * nowhere else. That is the whole of the tenant argument: "Law Company" has
  * Manchester and London, and an outage that closes both offices is one
- * customer's outage told once. A sibling of Law Company is a different
- * customer, and nothing here can reach one — `descendants()` walks sons and
+ * entity's outage told once. A sibling of Law Company is a different
+ * organisation, and nothing here can reach one — `descendants()` walks sons and
  * `ancestors()` walks parents, and neither has any way to arrive at a sibling.
  *
  * Both directions are core's own cached walkers, not queries of our own.
  * `getSonsOf()` reads the `sons_cache` column GLPI maintains on every entity
  * write; `getAncestorsOf()` reads `ancestors_cache` the same way. Writing our
  * own recursive CTE would be a second implementation of the tree that could
- * disagree with GLPI's about what a customer's offices are, and the one place
+ * disagree with GLPI's about what an organisation's offices are, and the one place
  * this plugin cannot afford a second opinion is the tenant boundary.
  *
  * The per-request memo on top is because the portal banner and the ticket
@@ -39,8 +39,8 @@ final class Tree
      * The entity's ancestors, nearest last, **excluding itself**.
      *
      * Root (0) is in the list, because root is a genuine ancestor: a recursive
-     * incident declared at root is an outage of the MSP's own, and every
-     * customer is downstream of it. That is not a leak — it is the one case
+     * incident declared at root is an outage of your own, and every entity
+     * is downstream of it. That is not a leak — it is the one case
      * where "everybody" is the right answer.
      *
      * @return int[]

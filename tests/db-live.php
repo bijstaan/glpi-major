@@ -9,7 +9,7 @@
  *
  * tests/nag.php, tests/matching.php and tests/statuspage.php cover everything
  * that was written to be pure. What they cannot reach is the half that decides
- * whether the plugin is safe to run on a customer's instance: whether declaring
+ * whether the plugin is safe to run on a real instance: whether declaring
  * really is gated on a right, whether attaching a ticket respects the tenant
  * boundary, and — the one that matters most — whether resolution *proposes* a
  * solution on twelve tickets or quietly closes them.
@@ -297,7 +297,7 @@ $t2 = (int) $ticket->add([
 
 $t3 = (int) $ticket->add([
     'name'              => "db-live $uniq: cannot open the shared drive",
-    'content'           => 'Same words, different customer.',
+    'content'           => 'Same words, different entity.',
     'entities_id'       => $eB,
     'itilcategories_id' => $CATEGORY,
     'status'            => Ticket::ASSIGNED,
@@ -357,7 +357,7 @@ is_same('it belongs to the ticket', (int) $incident->fields['tickets_id'], $t1);
 is_same('it inherits the ticket\'s entity', (int) $incident->fields['entities_id'], $eA);
 is_same('it starts investigating', (string) $incident->fields['state'], Incident::INVESTIGATING);
 is_same('the declarer is recorded', (int) $incident->fields['users_id_declared'], (int) Session::getLoginUserID());
-check('the customer-visible title is its own field',
+check('the public title is its own field',
     (string) $incident->fields['name'] === 'Shared drive unavailable'
     && (string) $incident->fields['name'] !== (string) $ticket->fields['name']);
 check('the declaration is in the audit trail', had_event($incidents_id, Events::DECLARED));
@@ -493,15 +493,15 @@ check(
 $incident->setState(Incident::IDENTIFIED);
 $incident->getFromDB($incidents_id);
 
-$u2 = Update::publish($incident, Update::CUSTOMER, $customer_text);
-check('a customer update is recorded', $u2 !== false);
+$u2 = Update::publish($incident, Update::EXTERNAL, $customer_text);
+check('a public update is recorded', $u2 !== false);
 
 is_same('the log holds both', count(Update::forIncident($incidents_id)), 2);
 is_same('one of them is internal', count(Update::forIncident($incidents_id, Update::INTERNAL)), 1);
-is_same('one of them is customer-visible', count(Update::forIncident($incidents_id, Update::CUSTOMER)), 1);
+is_same('one of them is public', count(Update::forIncident($incidents_id, Update::EXTERNAL)), 1);
 
 $latest = Update::latestCustomer($incidents_id);
-check('the latest customer update is the customer one', $latest !== null
+check('the latest public update is the public one', $latest !== null
     && (string) $latest['content'] === $customer_text);
 is_same(
     'and it carries the state we believed at the time',
@@ -515,7 +515,7 @@ is_same(
     (string) ($first['state_at_time'] ?? ''),
     Incident::INVESTIGATING
 );
-is_same('an empty update is refused', Update::publish($incident, Update::CUSTOMER, "  \n "), false);
+is_same('an empty update is refused', Update::publish($incident, Update::EXTERNAL, "  \n "), false);
 check('the state change is in the audit trail', had_event($incidents_id, Events::STATE));
 
 // The feed's own copy of that transition (0.1.2) — typed columns, permanent,
@@ -595,10 +595,10 @@ check('the page row records what was written',
     $page_row !== null && (int) $page_row['bytes'] === strlen($html) && (string) $page_row['last_error'] === '',
     (string) ($page_row['last_error'] ?? ''));
 
-check('the customer update is on it', str_contains($html, 'We have found the cause'));
+check('the public update is on it', str_contains($html, 'We have found the cause'));
 check('the internal note is not', !str_contains($html, 'Veeam') && !str_contains($html, 'DC01'));
 check('the internal ticket title is not', !str_contains($html, 'file server unreachable'));
-check('the customer-visible title is', str_contains($html, 'Shared drive unavailable'));
+check('the public title is', str_contains($html, 'Shared drive unavailable'));
 check('the address is not printed inside the page it addresses', !str_contains($html, $token));
 
 // The same word list the pure renderer suite asserts, re-asserted against a
@@ -683,7 +683,7 @@ $m_again = Maintenance::announce([
     'external_key' => $key,
 ]);
 is_same('re-announcing the same key updates the same row', $m_again, $m_id);
-is_same('rather than littering the customer\'s page', count_rows(Maintenance::getTable(), [
+is_same('rather than littering the public page', count_rows(Maintenance::getTable(), [
     'source'       => 'glpimajor-db-live',
     'external_key' => $key,
 ]), 1);
@@ -698,7 +698,7 @@ is_same(
     (string) (row(Maintenance::getTable(), ['id' => (int) $m_id])['state'] ?? ''),
     Maintenance::CANCELLED
 );
-check('and it is off the page a customer planned around',
+check('and it is off the page a reader planned around',
     !str_contains((string) @file_get_contents(Page::fileFor($token3)), 'Overnight firewall upgrade'));
 is_same(
     'withdrawing something nobody announced is a refusal, not a crash',
@@ -763,7 +763,7 @@ is_same(
     (int) ($solution['status'] ?? -1),
     CommonITILValidation::WAITING
 );
-check('it speaks the customer-visible title, not the internal one',
+check('it speaks the public title, not the internal one',
     $solution !== null
     && str_contains((string) $solution['content'], 'Shared drive unavailable')
     && !str_contains((string) $solution['content'], 'file server unreachable'));
@@ -900,18 +900,18 @@ check('re-locking by hand is recorded too',
     && had_event($incidents_id, Events::PIR_RELOCK));
 
 // The assembled timeline is a derivation, and the thing it must not lose is
-// what the customer was told and when.
+// what the public was told and when.
 $timeline = Pir::timeline($incidents_id);
 $labels   = array_column($timeline, 'label');
 check('the timeline is assembled, not typed', count($timeline) >= 5, implode(' | ', $labels));
 check('it distinguishes what we said in public from what we said inside',
-    in_array('Update to the customer', $labels, true) && in_array('Internal note', $labels, true),
+    in_array('Public update', $labels, true) && in_array('Internal note', $labels, true),
     implode(' | ', $labels));
 $ordered = $timeline;
 usort($ordered, static fn(array $a, array $b): int => strcmp($a['at'], $b['at']));
 is_same('and it is in order', array_column($ordered, 'at'), array_column($timeline, 'at'));
 
-// The internal note was written before the customer update, and on a fast
+// The internal note was written before the public update, and on a fast
 // machine both land in the same second. The update log reads newest-first and
 // PHP's sort is stable, so a merge that does not reverse it tells that second
 // of the story backwards — which is the second a review is usually about.
@@ -927,7 +927,7 @@ check(
 section('The public post-mortem: drafted freely, published only when it is over');
 
 // The incident is resolved by now, so the gate is open. Blank text is still
-// refused — an empty account on a customer's page is not a thing to publish.
+// refused — an empty account on an entity's page is not a thing to publish.
 check('publishing a blank post-mortem is refused',
     Postmortem::publish($incident, "  \n  ", false) !== null);
 check('and the refusal changed nothing', Postmortem::publishedFor($incidents_id) === null);
@@ -1053,7 +1053,7 @@ $london = $firm > 0 ? (int) $entity->add([
 ]) : 0;
 
 // The one that must never see anything. A sibling of the declaring entity —
-// another customer of the same MSP, at the same level in the tree.
+// another organisation on the same instance, at the same level in the tree.
 $rival = (int) $entity->add([
     'name'        => "glpimajor db-live rival firm $uniq",
     'entities_id' => 0,
@@ -1237,7 +1237,7 @@ is_same(
 
 Update::publish($wide_mi, Update::INTERNAL,
     'Array on FS02 degraded since 04:00. Do not fail the second disk.');
-Update::publish($wide_mi, Update::CUSTOMER,
+Update::publish($wide_mi, Update::EXTERNAL,
     'Documents on the shared drive cannot be opened from any of our offices. We are working on it.');
 
 $tok_firm  = Page::mint($firm);
@@ -1257,7 +1257,7 @@ check(
 );
 
 check(
-    'the customer update travels with it',
+    'the public update travels with it',
     str_contains($read($tok_man), 'cannot be opened from any of our offices')
 );
 check(
@@ -1281,7 +1281,7 @@ $narrow_mi = new Incident();
 $narrow_mi->getFromDB((int) $narrow);
 is_same('it is not marked as covering anything', (int) $narrow_mi->fields['is_recursive'], 0);
 
-Update::publish($narrow_mi, Update::CUSTOMER, 'Calls to the London office are not connecting.');
+Update::publish($narrow_mi, Update::EXTERNAL, 'Calls to the London office are not connecting.');
 
 check('London\'s page carries its own incident', str_contains($read($tok_lon), 'London only'));
 check(
@@ -1370,12 +1370,12 @@ Portal::forget($rival);
 $portal_man = Portal::state($manchester);
 check('the portal offers a covered office its own address', $portal_man['url'] !== '');
 is_same(
-    'and names the incident declared above it, in the customer\'s words',
+    'and names the incident declared above it, in the published wording',
     array_column($portal_man['incidents'], 'title'),
     ['All offices: shared documents unavailable']
 );
 is_same(
-    'but not with a window two days out — the page is where a customer plans, '
+    'but not with a window two days out — the page is where a reader plans, '
         . 'the banner is where they are interrupted',
     array_column($portal_man['maintenance'], 'title'),
     []

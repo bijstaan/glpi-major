@@ -16,7 +16,7 @@
 # WHAT THIS SCRIPT DOES NOT RUN
 #
 # tests/db-live.php is the other half, and it is not started from here on
-# purpose. It writes: an entity tree of its own — two unrelated customers, and
+# purpose. It writes: an entity tree of its own — two unrelated organisations, and
 # a third with two offices under it — seven tickets inside them, two incidents,
 # four status pages, maintenance windows and a review, and it removes all of it
 # on the way out, including on a fatal. It also flips `status_enabled` for the
@@ -25,7 +25,7 @@
 # secure field in a context on the way back in.
 #
 # It covers everything the three pure suites cannot reach, which is most of what
-# would actually hurt a customer: that declaring is gated on a right, that the
+# would actually hurt someone: that declaring is gated on a right, that the
 # matcher and the attach both refuse to cross a tenant boundary, that resolution
 # *proposes* a solution on attached tickets and changes no ticket's status and
 # assigns nobody, that the update log keeps its audiences apart and the
@@ -36,7 +36,7 @@
 # Since 2026-08-22 it also covers the property the recursion feature turns on:
 # that an incident marked as covering sub-entities reaches every page, ticket
 # and portal underneath the entity it was declared in, and that a sibling
-# customer's page, tickets and portal see none of it — asserted from both
+# entity's page, tickets and portal see none of it — asserted from both
 # directions rather than only from the covered side.
 #
 # It needs the plugin installed and active, and an instance you are willing to

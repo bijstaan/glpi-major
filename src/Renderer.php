@@ -17,7 +17,7 @@ namespace GlpiPlugin\Glpimajor;
  *
  * It never sees the page's token. The token is the *filename* the publisher
  * writes to, so there is no code path by which it could end up in the markup —
- * a customer who saves this page and mails it on has not handed over the URL.
+ * a reader who saves this page and mails it on has not handed over the URL.
  *
  * Everything is inlined: styles, the two glyphs, the logo when it is small
  * enough to embed. A page loaded during an outage is not the moment to depend
@@ -28,7 +28,7 @@ namespace GlpiPlugin\Glpimajor;
  * The markup uses Tabler's vocabulary — `card`, `card-header`, `card-title`,
  * `card-status-start`, `badge bg-*-lt`, `list-group`, `status-dot`, `alert`,
  * `text-secondary` — and css() below reproduces just enough of Tabler to render
- * those shapes, using the token values GLPI 11 actually ships. So a customer
+ * those shapes, using the token values GLPI 11 actually ships. So a reader
  * moving between the helpdesk portal and this page sees one product.
  *
  * It cannot simply *link* GLPI's stylesheet, for the same reason it cannot be a
@@ -40,16 +40,16 @@ namespace GlpiPlugin\Glpimajor;
  *
  * The palette is GLPI's **stock** one, not the running instance's. A
  * whitelabelled primary colour lives in a stylesheet this page cannot read, and
- * customer branding already arrives through {@see Brand} — the logo, the name
+ * your branding already arrives through {@see Brand} — the logo, the name
  * and the wording.
  *
  * No word from GLPI's vocabulary appears anywhere in the output. Not "ticket",
- * not "entity", not "requester" — a customer does not have any of those, and
+ * not "entity", not "requester" — a reader does not have any of those, and
  * seeing one tells them they are reading someone's internal tooling.
  */
 final class Renderer
 {
-    /** States, in the order a customer expects to see them progress. */
+    /** States, in the order a reader expects to see them progress. */
     public const STATES = [
         Incident::INVESTIGATING,
         Incident::IDENTIFIED,
@@ -100,7 +100,7 @@ final class Renderer
         $html .= "<meta charset=\"utf-8\">\n";
         $html .= "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n";
         // A status page is for the people who were given its address. It is not
-        // a thing to be found by searching for the customer's name.
+        // a thing to be found by searching for the entity's name.
         $html .= "<meta name=\"robots\" content=\"noindex, nofollow\">\n";
         $html .= '<title>' . self::e($title) . "</title>\n";
         $html .= "<style>\n" . self::css() . "</style>\n";
@@ -127,7 +127,7 @@ final class Renderer
      * this can be one method instead of two that drift.
      *
      * Still pure, and still the same allow-listed array in both cases: a
-     * customer signing in does not become entitled to more than a customer
+     * signed-in reader does not become entitled to more than a reader
      * holding the address, so there is no "internal" variant of this and no
      * flag that would produce one.
      */
@@ -338,7 +338,7 @@ final class Renderer
      * One open incident, fully expanded.
      *
      * Somebody arriving during an outage must not have to click to find out
-     * what is happening: the whole customer-visible record — the post-mortem
+     * what is happening: the whole public record — the post-mortem
      * if one has been published, then the update timeline — is on the page
      * before any interaction.
      */
@@ -407,7 +407,7 @@ final class Renderer
      * The body of an incident's entry: the dates, the post-mortem when one
      * has been published, then the whole update history newest-first.
      *
-     * The history is the point of the page. A customer who checks back after
+     * The history is the point of the page. A reader who checks back after
      * two hours wants to see what changed while they were away, in order, with
      * the state we believed at each step — not only the latest line, which
      * tells them nothing about whether anyone has been working.
@@ -435,7 +435,7 @@ final class Renderer
             // Not escaped again. Each part is a literal word plus when(), which
             // escapes what it interpolates and returns a <time> element —
             // passing that through e() a second time printed the tags as text
-            // on the one page in this plugin a customer reads.
+            // on the one page in this plugin a reader reads.
             $html .= '<p class="meta text-secondary">' . implode(' &middot; ', $meta) . "</p>\n";
         }
 
@@ -444,7 +444,7 @@ final class Renderer
         $html .= self::postmortem($incident, $tz);
 
         if ($updates === []) {
-            // Degrade honestly. An incident with no customer-facing update yet
+            // Degrade honestly. An incident with no public update yet
             // says so, rather than rendering an empty box that reads as a page
             // that has stopped working.
             $html .= '<p class="body text-secondary">We are working on this and will post an update shortly.</p>' . "\n";
@@ -599,7 +599,7 @@ final class Renderer
     /**
      * A timestamp, as a `<time>` element with a machine-readable value.
      *
-     * The offset is spelled out because a customer in a different timezone
+     * The offset is spelled out because a reader in a different timezone
      * reading "14:20" has no way to know whether that has happened yet.
      */
     private static function when(int $stamp, \DateTimeZone $tz, bool $with_zone = false): string
@@ -646,7 +646,7 @@ final class Renderer
         return $out;
     }
 
-    /** Small numbers read better as words in a sentence a customer is scanning. */
+    /** Small numbers read better as words in a sentence a reader is scanning. */
     private static function spell(int $n): string
     {
         return [
@@ -707,7 +707,7 @@ final class Renderer
      * This page's tone words, in Tabler's colour vocabulary.
      *
      * The page speaks in service terms — ok, warn, down, plan — because that is
-     * what a customer is reading about. Tabler speaks in success / warning /
+     * what a reader is reading about. Tabler speaks in success / warning /
      * danger / info. One map, in one place, rather than the two vocabularies
      * being interleaved through the markup.
      */

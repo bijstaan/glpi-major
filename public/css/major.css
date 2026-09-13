@@ -441,7 +441,7 @@
 .glpimajor-review-off { cursor: help; }
 
 /* The public post-mortem panel. The action bar mirrors the composer's: the
-   one customer-facing act (Publish) is the primary button, pushed right. */
+   one public act (Publish) is the primary button, pushed right. */
 .glpimajor-pm .glpimajor-pm-meta { margin-bottom: 8px; }
 .glpimajor-pm .glpimajor-pm-origin { margin-top: 6px; }
 .glpimajor-pm-bar {
@@ -459,7 +459,7 @@
     border-top: 1px solid var(--tblr-border-color);
     border-left: 3px solid transparent;
 }
-.glpimajor-log-entry.is-customer { border-left-color: var(--tblr-azure); }
+.glpimajor-log-entry.is-public { border-left-color: var(--tblr-azure); }
 .glpimajor-log-entry.is-internal { border-left-color: var(--tblr-border-color); }
 
 .glpimajor-log-head {
@@ -511,7 +511,7 @@
  *
  * Deliberately quiet. It is read by somebody who already knows something is
  * wrong, and a red alarm on a supplier's portal adds nothing but the look of
- * panic — so: a soft surface, one warm accent stripe, and the customer-visible
+ * panic — so: a soft surface, one warm accent stripe, and the public
  * title as the largest thing on it. Colours come from Tabler's own variables so
  * it follows the instance's theme, dark included, rather than pinning a light
  * background under white text.
@@ -835,7 +835,7 @@
 .glpimajor-portal-status .entry-state { font-weight: 600; }
 .glpimajor-portal-status .entry-at { margin-left: auto; font-size: .8125rem; }
 
-/* Customer prose. A single unbroken string — a URL somebody pasted into an
+/* Public prose. A single unbroken string — a URL somebody pasted into an
  * update — must wrap rather than widen the card past the page. */
 .glpimajor-portal-status .body { overflow-wrap: anywhere; }
 .glpimajor-portal-status .body p { margin: .5em 0; }

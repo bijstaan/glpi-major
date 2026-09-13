@@ -45,8 +45,8 @@ final class Matcher
 
         foreach ($incidents as $incident) {
             // Fail closed on the tenant boundary. This is the one condition
-            // that is not a heuristic: offering a customer's outage as an
-            // explanation for another customer's ticket leaks the fact of it.
+            // that is not a heuristic: offering an entity's outage as an
+            // explanation for another entity's ticket leaks the fact of it.
             //
             // Two ways through, and no third. The incident is in this ticket's
             // own entity; or it was declared at one of this ticket's

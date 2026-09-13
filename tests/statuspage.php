@@ -177,11 +177,11 @@ foreach ($forbidden as $word) {
 }
 
 check(
-    'it says what a customer would say',
+    'it says what a reader would say',
     str_contains($html, 'Current issues') && str_contains($html, 'Planned maintenance')
 );
 
-section('The customer sees the whole story');
+section('A reader sees the whole story');
 
 check('the branding is present', str_contains($html, 'Northwind IT'));
 check('every open incident is shown', str_contains($html, 'File sharing is unavailable')
@@ -215,7 +215,7 @@ check(
 check(
     'the "last updated" stamp names its timezone',
     (bool) preg_match('#Last updated <time[^>]*>[^<]*\((GMT|BST|UTC|[A-Z]{2,5})\)</time>#', $html),
-    'a customer elsewhere cannot act on a bare "14:20"'
+    'a reader elsewhere cannot act on a bare "14:20"'
 );
 check('the support contact is offered', str_contains($html, 'help@northwind.example'));
 check('the footer note survives', str_contains($html, 'service desk is open'));
@@ -602,7 +602,7 @@ section('The signed-in view renders from the same body');
 // The in-portal page is not a second renderer. PortalStatus prints
 // Renderer::body() into the interface's chrome, and the published file wraps
 // the identical call in its own document — so the two surfaces cannot drift
-// into showing a customer different things, which is the whole reason the
+// into showing a reader different things, which is the whole reason the
 // markup was converted to the interface's own vocabulary.
 
 $body = Renderer::body(fixture());
@@ -628,7 +628,7 @@ check(
     str_contains($body, 'Current issues') && str_contains($body, 'Planned maintenance')
 );
 
-// Signing in does not entitle a customer to more than the address does. The
+// Signing in does not entitle a reader to more than the address does. The
 // same redaction check the document gets, applied to what the portal prints.
 foreach ($forbidden as $word) {
     check(

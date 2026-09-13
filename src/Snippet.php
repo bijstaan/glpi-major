@@ -38,7 +38,7 @@ final class Snippet
             'entities_id'   => $entities_id,
             'is_recursive'  => $recursive ? 1 : 0,
             'name'          => mb_substr($name, 0, 255),
-            'audience'      => $audience === Update::INTERNAL ? Update::INTERNAL : Update::CUSTOMER,
+            'audience'      => $audience === Update::INTERNAL ? Update::INTERNAL : Update::EXTERNAL,
             'content'       => trim($content),
             'date_creation' => $now,
             'date_mod'      => $now,
@@ -62,7 +62,7 @@ final class Snippet
 
         return (bool) $DB->update(self::TABLE, [
             'name'         => mb_substr($name, 0, 255),
-            'audience'     => $audience === Update::INTERNAL ? Update::INTERNAL : Update::CUSTOMER,
+            'audience'     => $audience === Update::INTERNAL ? Update::INTERNAL : Update::EXTERNAL,
             'content'      => trim($content),
             'is_recursive' => $recursive ? 1 : 0,
             'date_mod'     => date('Y-m-d H:i:s'),
@@ -101,7 +101,7 @@ final class Snippet
      * Snippets usable in an entity: its own, plus recursive ones from above.
      *
      * The inheritance is GLPI's own — a template written once at the top of the
-     * tree should not need copying into forty customers — and the direction is
+     * tree should not need copying into forty entities — and the direction is
      * the safe one: a child never leaks a snippet up to its parent.
      *
      * @return array<int,array<string,mixed>>

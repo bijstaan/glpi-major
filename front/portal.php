@@ -18,7 +18,7 @@
  * A reader with no page to see gets the interface's own not-found, not a
  * permission error. "You may not see this" would confirm that their
  * organisation has a status page and that somebody decided they should not read
- * it, which is a sentence a customer should never be shown by accident.
+ * it, which is a sentence an outsider should never be shown by accident.
  */
 
 require_once(__DIR__ . '/../../../front/_check_webserver_config.php');

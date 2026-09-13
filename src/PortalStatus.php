@@ -27,7 +27,7 @@ use Session;
  *
  * The content comes from {@see Publisher::gather()} and is rendered by
  * {@see Renderer::body()} — the identical call the published file makes. A
- * customer signing in does not become entitled to more than a customer holding
+ * signed-in reader does not become entitled to more than a reader holding
  * the address, so there is deliberately no "internal" variant and no flag that
  * would produce one. If this page shows something the public page does not,
  * that is a bug in one shared method rather than a divergence between two.
@@ -67,7 +67,7 @@ final class PortalStatus
      *
      * The central interface is excluded on purpose. A technician has the
      * incident itself, with the commander, the comms owner and every update of
-     * both audiences; a customer-facing copy would be a worse version of a
+     * both audiences; a public copy would be a worse version of a
      * thing they already have open.
      */
     public static function applies(): bool
@@ -83,7 +83,7 @@ final class PortalStatus
      * Null covers every reason equally — publishing off, no session entity, no
      * page row, a row an administrator disabled — because the caller's response
      * to all of them is the same and a page that distinguished between them
-     * would be describing an administrator's configuration to a customer.
+     * would be describing an administrator's configuration to an outsider.
      *
      * @return array<string,mixed>|null
      */
@@ -184,7 +184,7 @@ final class PortalStatus
      * sending the same reader to two different places.
      *
      * Three forms, for the same reason {@see Portal::state()} keeps three — and
-     * getting it wrong is a link that 404s in a customer's face:
+     * getting it wrong is a link that 404s in a reader's face:
      *
      *   - `href` — root-relative *including* root_doc. What an anchor needs.
      *   - `path` — root-relative *without* it, because the menu template runs

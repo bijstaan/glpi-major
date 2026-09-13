@@ -18,7 +18,7 @@ use Session;
  * answerable in one glance without navigating.
  *
  * Everything here echoes. Escaping is explicit at every interpolation, and the
- * one place raw markup is emitted deliberately — the customer update's own text
+ * one place raw markup is emitted deliberately — the public update's own text
  * — goes through nl2br(htmlspecialchars()) rather than any HTML filter.
  */
 final class View
@@ -27,11 +27,11 @@ final class View
      * The cockpit: everything a commander glances at, above everything else.
      *
      * Modelled on what a good incident header does (OneUptime's, per the
-     * screenshots that prompted this): the customer-visible title as the
+     * screenshots that prompted this): the public title as the
      * biggest thing on the page, the state as a pill, how long it has been
      * going on, where it is in the progression, and the handful of numbers
      * that are actually asked for out loud — when it was declared, how long
-     * the customer waited for the first word, how many tickets are riding on
+     * people waited for the first word, how many tickets are riding on
      * it, and when the next word is due. The one prominent button is the
      * natural next transition; it drives the composer below rather than a
      * modal of its own, because the state change and the note that explains
@@ -123,21 +123,21 @@ final class View
         }
 
         // The comms-discipline number this plugin exists for: how long the
-        // customer waited before anybody told them anything.
+        // people waited before anybody told them anything.
         $first = null;
-        foreach (array_reverse(Update::forIncident($incidents_id, Update::CUSTOMER)) as $row) {
+        foreach (array_reverse(Update::forIncident($incidents_id, Update::EXTERNAL)) as $row) {
             $first = (string) $row['date_creation'];
             break;
         }
         if ($first !== null && $declared !== '') {
             echo "<span class='glpimajor-chip'><span class='glpimajor-chip-label'>"
-               . __s('First customer update', 'glpimajor') . "</span><span class='glpimajor-chip-value'>"
+               . __s('First public update', 'glpimajor') . "</span><span class='glpimajor-chip-value'>"
                . sprintf(__s('in %s', 'glpimajor'), self::duration(max(0, strtotime($first) - strtotime($declared))))
                . '</span></span>';
         } else {
             echo "<span class='glpimajor-chip" . ($is_open ? ' is-late' : '')
                . "'><span class='glpimajor-chip-label'>"
-               . __s('First customer update', 'glpimajor') . "</span><span class='glpimajor-chip-value'>"
+               . __s('First public update', 'glpimajor') . "</span><span class='glpimajor-chip-value'>"
                . ($is_open ? __s('none yet', 'glpimajor') : __s('none', 'glpimajor')) . '</span></span>';
         }
 
@@ -256,7 +256,7 @@ final class View
         self::commsPanel($incident, $can_edit);
         self::affectedPanel($incident, $can_edit);
         // Public account above the internal review — the same order the
-        // customer's page gives it, and the same argument: the finished
+        // public page gives it, and the same argument: the finished
         // account is worth more to a reader than the working papers.
         self::postmortemPanel($incident, $can_edit);
         self::pirPanel($incident, $can_edit);
@@ -409,7 +409,7 @@ final class View
      * the audience a segmented control, but the payload the server reads is
      * exactly 0.1.1's — presentation moved, the contract did not. The
      * audience is radios underneath and defaults to internal: a default of
-     * "customer-visible" would mean one mis-click publishing an internal note
+     * "public" would mean one mis-click publishing an internal note
      * to a status page, and there is no unsend.
      */
     private static function composer(Incident $incident, int $entities_id): void
@@ -463,7 +463,7 @@ final class View
 
         // The audience as a segmented control that says what the choice
         // *does*, not just who it is for. Internal stays the default: a
-        // default of "customer-visible" would mean one mis-click publishing
+        // default of "public" would mean one mis-click publishing
         // an internal note to a status page, and there is no unsend.
         echo "<div class='glpimajor-audience' role='group' aria-label='"
            . __s('Audience', 'glpimajor') . "'>";
@@ -472,8 +472,8 @@ final class View
            . "' checked='checked'>";
         echo '<span>' . __s('Internal note', 'glpimajor') . '</span></label>';
         echo "<label class='glpimajor-audience-opt'>";
-        echo "<input type='radio' name='glpimajor_audience' value='" . Update::CUSTOMER . "'>";
-        echo '<span>' . __s('Customer-visible — updates the status page', 'glpimajor') . '</span></label>';
+        echo "<input type='radio' name='glpimajor_audience' value='" . Update::EXTERNAL . "'>";
+        echo '<span>' . __s('Public — updates the status page', 'glpimajor') . '</span></label>';
         echo '</div>';
 
         // The next-update promise, also defaulting to "keep". The minute
@@ -541,13 +541,13 @@ final class View
 
     private static function logEntry(array $entry): void
     {
-        $is_customer = (string) $entry['audience'] === Update::CUSTOMER;
+        $is_public = (string) $entry['audience'] === Update::EXTERNAL;
 
         echo "<li class='glpimajor-log-entry glpimajor-feed-update "
-           . ($is_customer ? 'is-customer' : 'is-internal') . "'>";
+           . ($is_public ? 'is-public' : 'is-internal') . "'>";
         echo "<div class='glpimajor-log-head'>";
         echo "<span class='glpimajor-log-audience'>"
-           . self::e($is_customer ? __('Customer-visible', 'glpimajor') : __('Internal only', 'glpimajor'))
+           . self::e($is_public ? __('Public', 'glpimajor') : __('Internal only', 'glpimajor'))
            . '</span>';
         echo "<span class='glpimajor-log-state'>"
            . self::e(Incident::stateLabel((string) $entry['state_at_time'])) . '</span>';
@@ -710,7 +710,7 @@ final class View
         echo '</div></div><div class="card-body">';
 
         echo "<p class='text-muted small'>"
-           . __s('This is what the customer reads on the status page, in their language — '
+           . __s('This is what the reader reads on the status page, in their language — '
                . 'distinct from the internal post-incident review below, which stays in the '
                . 'house. Plain prose; blank lines become paragraphs.', 'glpimajor')
            . '</p>';
@@ -735,7 +735,7 @@ final class View
         }
 
         echo "<textarea class='form-control' rows='8' data-glpimajor-pm-content "
-           . "placeholder='" . __s('What happened, what it meant for the customer, what we did, '
+           . "placeholder='" . __s('What happened, what it meant for the people affected, what we did, '
                . 'and what we are changing.', 'glpimajor') . "'"
            . ($can_edit ? '' : " disabled='disabled'")
            . '>' . self::e($content) . '</textarea>';

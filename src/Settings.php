@@ -11,7 +11,7 @@ use Config;
 /**
  * Plugin settings, with defaults.
  *
- * Defaults permit nothing that reaches a customer: publishing is off, the AI
+ * Defaults permit nothing that reaches the public: publishing is off, the AI
  * review is off, and no entity has a status page until somebody mints a token
  * for it. Everything that is on by default is internal-facing — matching offers
  * a banner, the nag reminds a colleague.
@@ -30,13 +30,13 @@ final class Settings
         // last month is not what this ticket is about.
         'match_window_hours'  => 72,
         // Words shorter than this never count as a keyword match, or "the" and
-        // "server" match everything the MSP has ever run.
+        // "server" match everything the estate has ever run.
         'match_min_word'      => 5,
 
         // --- how far a declaration reaches --------------------------------
         // The default state of the declare control's "Also covers sub-entities"
         // checkbox, which is only offered when the entity has any. Off: putting
-        // an outage on a customer's status page is a publication, and the safe
+        // an outage on an entity's status page is a publication, and the safe
         // direction for a default is the one that publishes less. Ticking a box
         // costs a click; un-publishing an outage from three offices' pages
         // costs an explanation.
@@ -53,7 +53,7 @@ final class Settings
         'update_interval'    => 60,
 
         // --- AI review (glpi-ai, optional) --------------------------------
-        // The model reads a draft customer update and reports on it. It never
+        // The model reads a draft public update and reports on it. It never
         // writes one, and this is off until somebody turns it on.
         'ai_review_enabled' => 0,
 
@@ -173,7 +173,7 @@ final class Settings
 
         // Matching with every signal switched off would offer every open
         // incident in the entity on every new ticket, which is noise wearing a
-        // feature's clothes. Category is the one an MSP always has.
+        // feature's clothes. Category is the one every instance always has.
         if (
             (int) $s['match_enabled'] === 1
             && (int) $s['match_same_category'] === 0

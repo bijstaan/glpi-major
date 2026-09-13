@@ -7,7 +7,7 @@
 namespace GlpiPlugin\Glpimajor;
 
 /**
- * Gathers what a customer may see, renders it, and writes the file.
+ * Gathers what a reader may see, renders it, and writes the file.
  *
  * The only thing in this plugin that writes to disk, and the only bridge
  * between the database and the Renderer — which is pure, and stays that way
@@ -15,7 +15,7 @@ namespace GlpiPlugin\Glpimajor;
  *
  * Publication is synchronous, on the request that made the change. A queue
  * would be tidier and would mean a technician pressing "publish" and having no
- * idea whether it worked; during an outage, "did the customer see that" is not
+ * idea whether it worked; during an outage, "did the reader see that" is not
  * a question to answer with "probably, within fifteen minutes".
  *
  * Nothing here can throw into its caller. A status page that fails to write must
@@ -26,7 +26,7 @@ namespace GlpiPlugin\Glpimajor;
 final class Publisher
 {
     /**
-     * Republish an entity's page because something customer-visible changed.
+     * Republish an entity's page because something public changed.
      *
      * Cheap and safe to call from anywhere, including from paths where nothing
      * relevant changed: working out which fields matter in every code path is
@@ -53,11 +53,11 @@ final class Publisher
     }
 
     /**
-     * A customer-visible change on a recursive incident, republished everywhere
+     * A public change on a recursive incident, republished everywhere
      * it is now read.
      *
      * The declaring entity's page and every descendant's, because a recursive
-     * incident appears on all of them and a stale child page is a customer
+     * incident appears on all of them and a stale child page is a reader
      * being told the outage is over when it is not.
      *
      * Batched at the query, not at the render. One request finds the pages that
@@ -113,7 +113,7 @@ final class Publisher
 
         // The master switch is checked here as well as in onChange(), because
         // this is also what the Republish button and the cron call. A feature
-        // that is switched off must not be writing customer-facing files
+        // that is switched off must not be writing public files
         // because somebody pressed a button that was still on the screen.
         if (!Settings::flag('status_enabled')) {
             return false;
@@ -139,7 +139,7 @@ final class Publisher
             }
 
             // Written to a neighbour and renamed. rename() within a filesystem
-            // is atomic, so a customer refreshing mid-write reads either the
+            // is atomic, so a reader refreshing mid-write reads either the
             // old page or the new one, never half of either.
             $tmp = $file . '.' . bin2hex(random_bytes(4)) . '.tmp';
             if (@file_put_contents($tmp, $html) === false) {
@@ -162,7 +162,7 @@ final class Publisher
             Events::record(0, Events::PUBLISHED, sprintf('%d bytes', strlen($html)), $entities_id, 0);
 
             // The portal reads a cached summary of the same facts. Dropping it
-            // here rather than waiting for the TTL is what makes a customer
+            // here rather than waiting for the TTL is what makes a reader
             // update posted at 09:14 visible on the portal at 09:14.
             Portal::forget($entities_id);
 
@@ -186,7 +186,7 @@ final class Publisher
     /**
      * Everything the Renderer needs, and nothing it does not.
      *
-     * This is where the customer-visible projection happens: internal updates
+     * This is where the public projection happens: internal updates
      * are dropped here rather than filtered in the template, so there is no
      * template path that could accidentally reach one. The document that leaves
      * this process has never held an internal sentence.
@@ -250,7 +250,7 @@ final class Publisher
         $out = [];
         foreach ($rows as $row) {
             $updates = [];
-            foreach (Update::forIncident((int) $row['id'], Update::CUSTOMER) as $update) {
+            foreach (Update::forIncident((int) $row['id'], Update::EXTERNAL) as $update) {
                 $updates[] = [
                     'at'      => self::stamp($update['date_creation'] ?? null),
                     'state'   => (string) ($update['state_at_time'] ?? $row['state']),
@@ -279,12 +279,12 @@ final class Publisher
                 }
             }
 
-            // A resolved incident nobody ever told the customer about was never
+            // A resolved incident nobody ever announced was never
             // on the page, and putting it there when it ends would be the first
             // they heard of an outage that is already over. A published
             // post-mortem counts as telling them: publishing one is precisely
             // the deliberate act of putting the incident in front of the
-            // customer, updates or no updates.
+            // publicly, updates or no updates.
             if ($updates === [] && $postmortem === null && (string) $row['state'] === Incident::RESOLVED) {
                 continue;
             }
@@ -327,7 +327,7 @@ final class Publisher
     /**
      * The timezone the page's clock is drawn in.
      *
-     * Configured here rather than taken from PHP, because the customer reading
+     * Configured here rather than taken from PHP, because the reader reading
      * it is not necessarily in the same country as the server — and a page that
      * says "14:20" with no offset is a page nobody can act on. The Renderer
      * prints the offset next to the "last updated" stamp for that reason.

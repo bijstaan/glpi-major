@@ -9,13 +9,13 @@ namespace GlpiPlugin\Glpimajor;
 use Plugin;
 
 /**
- * The MSP's identity, for a page a customer reads.
+ * Your identity, for a page an outsider reads.
  *
  * The status page must never wear GLPI's face. If glpi-whitelabel is installed
  * it already knows the product name and holds the logo, so that is where this
  * looks first; absent, it falls back to what an administrator typed into this
  * plugin's own settings, and absent that, to a plain unbranded page — which is
- * honest, and better than a customer being shown somebody else's logo.
+ * honest, and better than a reader being shown somebody else's logo.
  *
  * Read-only. `Settings::save()`, `Settings::bump()` and everything in
  * `Assets` that writes are none of our business, and calling them from here

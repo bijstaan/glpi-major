@@ -12,8 +12,8 @@
  *
  * Every action re-authorises against the object it addresses rather than
  * trusting the client's word. The incident id arrives from the browser, so
- * without a per-action check this endpoint would happily attach one customer's
- * ticket to another customer's outage for anyone who can guess two integers.
+ * without a per-action check this endpoint would happily attach one entity's
+ * ticket to another entity's outage for anyone who can guess two integers.
  *
  * No Session::checkCSRF(). GLPI 11's CheckCsrfListener already validated this
  * request before the script was reached; for an XHR carrying
@@ -205,12 +205,12 @@ switch ($action) {
         }
 
         // A state-only or promise-only post is legitimate — but not to the
-        // customer. Customer-visible means something lands on a status page,
+        // publication. Public means something lands on a status page,
         // and an empty something is not a thing to publish.
-        if ($audience === Update::CUSTOMER && $content === '') {
+        if ($audience === Update::EXTERNAL && $content === '') {
             $respond([
                 'ok'    => false,
-                'error' => __('A customer-visible update needs something to say. Write it, or '
+                'error' => __('A public update needs something to say. Write it, or '
                     . 'post internally.', 'glpimajor'),
             ], 400);
         }

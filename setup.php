@@ -5,16 +5,16 @@
  */
 
 /**
- * GLPI Major — major-incident mode, and a status page the customer can read.
+ * GLPI Major — major-incident mode, and a status page anyone can read.
  *
- * A major incident is a *mode*, not a priority level. When one customer's file
+ * A major incident is a *mode*, not a priority level. When one entity's file
  * server dies, twelve people file twelve tickets, three technicians answer
- * separately, and nobody owns telling the customer what is happening. Priority
- * fields do not fix that; a mode does — one record, one commander, one comms
- * owner, one customer-visible title, and one published page everybody can be
+ * separately, and nobody owns telling the outside world what is happening.
+ * Priority fields do not fix that; a mode does — one record, one commander,
+ * one comms owner, one public title, and one published page everybody can be
  * pointed at.
  *
- * Nothing here acts on a customer by itself. Duplicates are *offered* for
+ * Nothing here publishes by itself. Duplicates are *offered* for
  * attachment and attached by a click; resolution *proposes* a solution on every
  * attached ticket and closes none of them; the optional AI review reads a draft
  * update and never writes one.
@@ -94,7 +94,7 @@ function plugin_init_glpimajor()
      * top-level entry. `helpdesk_menu_entry` — the hook whose name suggests it
      * is the answer — does still work, but it forces the entry into a shared
      * "Plugins" dropdown titled with the plugin's own name, which is not where
-     * a customer looks for "is it just me".
+     * a reader looks for "is it just me".
      */
     $PLUGIN_HOOKS[Hooks::DISPLAY_CENTRAL]['glpimajor']  = 'plugin_glpimajor_display_central';
     $PLUGIN_HOOKS[Hooks::REDEFINE_MENUS]['glpimajor']   = 'plugin_glpimajor_redefine_menus';
@@ -133,7 +133,7 @@ function plugin_init_glpimajor()
      * The status page is read by strangers, and needs both opt-outs.
      *
      * This is the first of the two: the firewall strategy stops GLPI demanding
-     * a logged-in user, without which every customer gets the login page. It
+     * a logged-in user, without which every reader gets the login page. It
      * belongs here because the firewall is consulted per controller, long after
      * plugins are initialised.
      *
@@ -166,7 +166,7 @@ function plugin_init_glpimajor()
  * InitializePlugins that calls `plugin_init_<key>()`. A stateless path
  * registered there is registered *after* SessionStart has already asked whether
  * this request needs a session, so the answer was always "yes": every anonymous
- * refresh of a customer's status page set a cookie on their browser and wrote a
+ * refresh of an entity's status page set a cookie on their browser and wrote a
  * session file on the server, which is the exact opposite of what registering
  * the path was for. Measured, not guessed — the session directory grew by one
  * file per request.
