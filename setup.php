@@ -49,6 +49,13 @@ function plugin_init_glpimajor()
     global $PLUGIN_HOOKS;
 
     $PLUGIN_HOOKS['csrf_compliant']['glpimajor'] = true;
+
+    // The plugin's rights, on Administration > Profiles.
+    //
+    // Core stores a plugin's rights and saves them back with its own, but
+    // renders a form for its rights only — so without this tab the ones below
+    // are enforced everywhere and grantable nowhere but SQL.
+    Plugin::registerClass(\GlpiPlugin\Glpimajor\Profile::class, ['addtabon' => ['Profile']]);
     $PLUGIN_HOOKS['config_page']['glpimajor']    = 'front/config.php';
 
     // Registering the itemtypes is what puts them in the search engine — which
