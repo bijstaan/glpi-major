@@ -25,7 +25,7 @@ use CronTask;
  */
 class Page extends CommonDBTM
 {
-    public static $rightname = 'plugin_glpimajor_config';
+    public static string $rightname = 'plugin_glpimajor_config';
 
     /** 24 random bytes as lowercase hex. 192 bits is past argument. */
     public const TOKEN_BYTES = 24;

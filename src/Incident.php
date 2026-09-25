@@ -31,9 +31,9 @@ use Ticket;
  */
 class Incident extends CommonDBTM
 {
-    public static $rightname = 'plugin_glpimajor_declare';
+    public static string $rightname = 'plugin_glpimajor_declare';
 
-    public $dohistory = true;
+    public bool $dohistory = true;
 
     public const INVESTIGATING = 'investigating';
     public const IDENTIFIED    = 'identified';

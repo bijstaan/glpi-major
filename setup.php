@@ -29,7 +29,7 @@ use GlpiPlugin\Glpimajor\Maintenance;
 use GlpiPlugin\Glpimajor\MobileController;
 
 define('PLUGIN_GLPIMAJOR_VERSION', '0.1.3');
-define('PLUGIN_GLPIMAJOR_MIN_GLPI', '11.0');
+define('PLUGIN_GLPIMAJOR_MIN_GLPI', '12.0');
 
 // Settings live under this config context.
 define('PLUGIN_GLPIMAJOR_CONFIG_CONTEXT', 'plugin:glpimajor');

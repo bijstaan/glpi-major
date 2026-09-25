@@ -21,7 +21,7 @@ use CronTask;
  */
 class Events extends CommonDBTM
 {
-    public static $rightname = 'plugin_glpimajor_declare';
+    public static string $rightname = 'plugin_glpimajor_declare';
 
     public const DECLARED    = 'declared';
     public const STATE       = 'state';

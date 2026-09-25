@@ -36,7 +36,7 @@ if (!empty($_POST['declare'])) {
     }
 
     if (!$ticket->can($ticket->getID(), UPDATE)) {
-        Html::displayRightError();
+        throw new \Glpi\Exception\Http\AccessDeniedHttpException();
     }
 
     $id = Incident::declareFor($ticket, [

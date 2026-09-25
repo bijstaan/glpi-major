@@ -31,7 +31,7 @@ $page = PortalStatus::pageForReader();
 
 if ($page === null) {
     Html::helpHeader(__('Service status', 'glpimajor'));
-    Html::displayNotFoundError();
+    throw new \Glpi\Exception\Http\NotFoundHttpException();
 }
 
 Html::helpHeader(__('Service status', 'glpimajor'));

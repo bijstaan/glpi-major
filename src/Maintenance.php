@@ -27,9 +27,9 @@ use Html;
  */
 class Maintenance extends CommonDBTM
 {
-    public static $rightname = 'plugin_glpimajor_config';
+    public static string $rightname = 'plugin_glpimajor_config';
 
-    public $dohistory = true;
+    public bool $dohistory = true;
 
     public const SCHEDULED   = 'scheduled';
     public const IN_PROGRESS = 'in_progress';
