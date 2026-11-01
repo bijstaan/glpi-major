@@ -85,6 +85,10 @@ function plugin_init_glpimajor()
     // control's form= indirection (Banner::FORM_ID) is unaffected.
     $PLUGIN_HOOKS[Hooks::PRE_ITIL_INFO_SECTION]['glpimajor'] = 'plugin_glpimajor_pre_item_form';
 
+    // An incident's entity is its ticket's, forced on add whatever the form
+    // posts — so GLPI Scope must not ask for one. Inert without that plugin.
+    $PLUGIN_HOOKS['glpiscope_derived']['glpimajor'] = [Incident::class];
+
     /**
      * The requester's side, in the self-service interface.
      *
